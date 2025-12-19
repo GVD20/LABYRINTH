@@ -1,0 +1,1950 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Labyrinth | 逻辑迷宫</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Serif+SC:wght@300;500;700;900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    
+    <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+    
+    <style>
+        /* ==================== 1. 核心变量 & 字体 ==================== */
+        :root {
+            --bg-dark: #020617;
+            --bg-card: rgba(30, 41, 59, 0.70);
+            --bg-glass: rgba(15, 23, 42, 0.6);
+            --primary: #38bdf8; 
+            --primary-glow: rgba(56, 189, 248, 0.3);
+            --guess: #f59e0b;
+            --guess-dim: rgba(245, 158, 11, 0.1);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
+            
+            /* 语义色 */
+            --c-yes: #4ade80;   
+            --c-no: #f87171;    
+            --c-irr: #94a3b8;   
+            --c-amb: #a78bfa;   
+            --c-hint: #facc15; 
+
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
+
+            /* 字体定义 */
+            --font-ui: 'Noto Sans SC', system-ui, sans-serif;
+            --font-serif: 'Noto Serif SC', serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            margin: 0;
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 80%);
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+        /* ==================== 2. 通用组件 & 动画 ==================== */
+        .glass-panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s;
+        }
+
+        /* 按钮风格现代化 */
+        .btn {
+            font-family: var(--font-ui);
+            font-weight: 500;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 0.9rem;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            user-select: none;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn:hover { 
+            background: rgba(255,255,255,0.08); 
+            transform: translateY(-2px); 
+            border-color: rgba(255,255,255,0.2);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .btn:active { transform: translateY(0); }
+        
+        .btn.primary {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.8), rgba(99, 102, 241, 0.8));
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: white; font-weight: 600;
+            box-shadow: 0 4px 20px rgba(56, 189, 248, 0.25);
+        }
+        .btn.primary:hover {
+            box-shadow: 0 8px 25px rgba(56, 189, 248, 0.4);
+            border-color: rgba(56, 189, 248, 0.6);
+        }
+        
+        /* 扫描按钮样式 */
+        .btn.scan-success {
+            background: rgba(74, 222, 128, 0.15);
+            border-color: rgba(74, 222, 128, 0.4);
+            color: #ecfccb;
+        }
+        .btn.scan-success:hover {
+            background: rgba(74, 222, 128, 0.25);
+            box-shadow: 0 4px 15px rgba(74, 222, 128, 0.2);
+        }
+
+        .iconify { font-size: 1.1em; }
+
+        /* 页面切换动画 */
+        .page {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            opacity: 0; pointer-events: none; transform: scale(0.96) translateY(10px);
+            transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1; visibility: hidden;
+        }
+        .page.active { 
+            opacity: 1; pointer-events: auto; transform: scale(1) translateY(0); 
+            z-index: 10; visibility: visible; 
+        }
+
+        /* ==================== 3. 首页 (Home) ==================== */
+        .home-layout {
+            display: flex; flex-direction: column; width: 100%; max-width: 1400px; 
+            height: 100%; margin: 0 auto; padding: 20px; gap: 20px;
+        }
+        @media (min-width: 1024px) {
+            .home-layout { flex-direction: row; padding: 40px; align-items: stretch; }
+            .title-section { flex: 0 0 420px; }
+            .bubble-section { flex: 1; }
+        }
+
+        .title-section {
+            z-index: 5; display: flex; flex-direction: column; gap: 15px;
+            padding: 30px; border-radius: var(--radius-lg); height: 100%;
+        }
+
+        .game-title {
+            font-family: var(--font-serif);
+            font-size: 3.5rem; margin: 0; line-height: 1;
+            background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
+            -webkit-background-clip: text; color: transparent;
+            font-weight: 900; letter-spacing: -2px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .difficulty-selector { display: flex; gap: 5px; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 12px; border: 1px solid var(--border); }
+        .diff-btn { 
+            flex: 1; padding: 8px; text-align: center; cursor: pointer; 
+            border-radius: 8px; font-size: 0.85rem; color: var(--text-muted); 
+            transition: all 0.3s; font-weight: 500;
+        }
+        .diff-btn:hover { color: var(--text-main); background: rgba(255,255,255,0.03); }
+        .diff-btn.active { background: rgba(255,255,255,0.1); color: var(--text-main); font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+
+        /* 气泡容器 */
+        .bubble-stage {
+            width: 100%; height: 100%; min-height: 300px;
+            border-radius: var(--radius-lg); border: 1px solid var(--border);
+            background: radial-gradient(circle at center, rgba(56, 189, 248, 0.03), transparent 70%);
+            position: relative; overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.2);
+        }
+        
+        /* 气泡样式更新：思源宋体 */
+        .bubble {
+            position: absolute; border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04) 60%, rgba(255, 255, 255, 0.01) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: inset 2px 2px 8px rgba(255,255,255,0.05), inset -2px -2px 8px rgba(0,0,0,0.2);
+            backdrop-filter: blur(5px); 
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-muted); cursor: pointer; 
+            user-select: none;
+            /* 字体变更为思源宋体 */
+            font-family: var(--font-serif); font-weight: 400; letter-spacing: 1px;
+            transition: border-color 0.3s, color 0.3s, font-weight 0.3s, font-size 0.3s, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            will-change: transform, left, top;
+            animation: bubblePop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .bubble:hover { 
+            background: radial-gradient(circle at 30% 30%, rgba(56, 189, 248, 0.25), rgba(56, 189, 248, 0.1) 60%);
+            border-color: var(--primary); z-index: 100; color: white; 
+            box-shadow: 0 0 20px var(--primary-glow), inset 2px 2px 10px rgba(255,255,255,0.3); 
+        }
+        .bubble.selected { 
+            background: var(--text-main); color: #020617; border-color: white; 
+            /* 选中后字重 Heavy，字号放大 */
+            font-weight: 900; font-size: 1.5em;
+            box-shadow: 0 0 30px rgba(255,255,255,0.4); z-index: 50; 
+        }
+        .bubble.exit { transform: scale(0); opacity: 0; transition: all 0.4s ease-in; }
+
+        /* 历史记录 */
+        #historySection { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-top: 1px solid var(--border); padding-top: 15px; display: none; }
+        .history-list { flex: 1; overflow-y: auto; padding-right: 5px; }
+        .history-item {
+            padding: 12px; border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.9rem; margin-bottom: 8px; transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .history-item:hover { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.05); }
+        .tag-active { color: var(--primary); background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; border: 1px solid rgba(56,189,248,0.2); }
+        .tag-done { color: var(--guess); background: rgba(245, 158, 11, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; border: 1px solid rgba(245,158,11,0.2); }
+        .tag-fail { color: var(--text-muted); background: rgba(255, 255, 255, 0.05); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+        .tag-diff { color: var(--text-muted); background: rgba(255, 255, 255, 0.08); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.1); }
+
+        /* ==================== 4. 游戏页 (Game) ==================== */
+        .game-container { 
+            max-width: 900px; width: 100%; height: 100%; margin: 0 auto; 
+            display: flex; flex-direction: column; padding: 20px; 
+            transition: all 0.5s ease;
+        }
+
+        /* 头部 */
+        .game-header {
+            flex-shrink: 0;
+            border-radius: var(--radius-md); padding: 24px;
+            display: flex; flex-direction: column; gap: 12px;
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            margin-bottom: 0; position: relative; z-index: 20;
+        }
+        
+        .game-container.state-init { justify-content: center; }
+        .game-container.state-init .game-header { transform: scale(1.02); box-shadow: 0 30px 60px rgba(0,0,0,0.4); border-color: rgba(56, 189, 248, 0.2); }
+        .game-container.state-init .chat-area, 
+        .game-container.state-init .input-wrapper { display: none; opacity: 0; }
+
+        .game-container.state-active { justify-content: flex-start; }
+        .game-container.state-active .game-header { transform: scale(1); }
+        .game-container.state-active .chat-area, 
+        .game-container.state-active .input-wrapper { display: flex; opacity: 1; animation: fadeIn 0.8s ease forwards; }
+
+        .game-container.state-over .input-wrapper { display: none !important; opacity: 0; pointer-events: none; }
+        .game-container.state-over .chat-area { flex: 1; margin-bottom: 0; }
+
+        .puzzle-title-row { display: flex; justify-content: space-between; align-items: flex-start; }
+        .puzzle-title { 
+            font-family: var(--font-serif);
+            font-size: 1.6rem; font-weight: 700; margin: 0; color: var(--text-main); line-height: 1.3; 
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .puzzle-title.switching { opacity: 0; transform: translateY(-10px); }
+
+        .puzzle-meta { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+        
+        .puzzle-tags { font-family: var(--font-ui); font-size: 0.8rem; color: var(--text-muted); display:flex; align-items:center; gap:8px;}
+        .diff-badge { background: rgba(255,255,255,0.08); color: var(--text-main); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid var(--border); }
+
+        .header-stats { display: flex; gap: 8px; align-items: center; }
+        
+        .stat-badge { 
+            font-family: var(--font-ui); font-size: 0.95rem; font-weight: 500; color: var(--text-muted); 
+            background: rgba(0,0,0,0.25); padding: 6px 14px; border-radius: 8px; 
+            border: 1px solid var(--border); white-space: nowrap; display: flex; align-items: center; gap: 8px;
+            min-width: 80px; justify-content: center;
+        }
+
+        /* 思考条 */
+        .thinking-bar {
+            display: flex; align-items: center; gap: 12px; margin-top: 10px;
+            background: rgba(0,0,0,0.3); padding: 0 14px; border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.05); overflow: hidden;
+            height: 0; opacity: 0; 
+            transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s, border 0.3s;
+        }
+        .thinking-bar.active { height: 38px; opacity: 1; margin-top: 10px; padding: 0 14px; border: 1px solid rgba(255,255,255,0.05); }
+        
+        .thinking-dot { 
+            width: 8px; height: 8px; background: var(--guess); border-radius: 50%; 
+            animation: pulse 1s infinite; flex-shrink: 0; box-shadow: 0 0 8px var(--guess);
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+        
+        /* 标签容器 - 滚动切换 */
+        .thinking-label-container {
+            height: 20px; overflow: hidden; position: relative; width: 90px; flex-shrink: 0;
+        }
+        .thinking-label-track {
+            display: flex; flex-direction: column;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .thinking-label { 
+            font-size: 0.85rem; font-weight: bold; color: var(--guess); 
+            white-space: nowrap; font-family: var(--font-ui); height: 20px; line-height: 20px;
+            transition: color 0.3s;
+        }
+        
+        /* 模糊内容区 */
+        .thinking-content {
+            flex: 1; display: flex; justify-content: flex-end; 
+            align-items: center; overflow: hidden; 
+            font-family: var(--font-mono); font-size: 0.85rem; color: rgba(255,255,255,0.7);
+            mask-image: linear-gradient(to right, transparent, black 15%, black 100%);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 100%);
+            filter: blur(4px); transition: filter 0.3s, color 0.3s;
+            user-select: none; pointer-events: none;
+            white-space: pre; 
+        }
+        
+        /* 状态颜色控制 */
+        .thinking-bar.generating .thinking-dot { background: var(--c-yes); box-shadow: 0 0 8px var(--c-yes); }
+        .thinking-bar.generating .thinking-label { color: var(--c-yes); }
+        .thinking-bar.generating .thinking-content { color: var(--text-main); }
+
+        .puzzle-text {
+            font-family: var(--font-serif); font-weight: 500;
+            font-size: 1.1rem; line-height: 1.8; color: #e2e8f0; margin-top: -10px; 
+            border-left: 3px solid var(--primary); padding-left: 18px;
+            display: none; animation: slideDown 0.6s ease;
+        }
+
+        /* 聊天区 */
+        .chat-area { 
+            flex: 1; overflow-y: auto; padding: 10px 5px; margin: 10px 0;
+            flex-direction: column; gap: 20px; 
+            mask-image: linear-gradient(to bottom, transparent, black 20px);
+        }
+
+        .msg { max-width: 88%; padding: 14px 20px; border-radius: 20px; font-size: 1rem; line-height: 1.6; animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); position: relative; font-family: var(--font-ui); }
+        
+        .msg-user-ask { align-self: flex-end; background: var(--primary); color: #020617; border-bottom-right-radius: 4px; font-weight: 500; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.2); }
+        .msg-user-guess { align-self: flex-end; background: var(--guess-dim); color: var(--text-main); border: 1px solid var(--guess); border-bottom-right-radius: 4px; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.1); }
+        
+        .msg-ai { align-self: flex-start; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+        .ai-yes { border-color: rgba(74, 222, 128, 0.3); background: rgba(74, 222, 128, 0.08); color: #ecfccb; box-shadow: 0 0 20px rgba(74, 222, 128, 0.05); }
+        .ai-no { border-color: rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.08); color: #fee2e2; box-shadow: 0 0 20px rgba(248, 113, 113, 0.05); }
+        .ai-irr { border-color: var(--c-irr); background: rgba(148, 163, 184, 0.05); color: #f1f5f9; }
+        .ai-amb { border-color: var(--c-amb); background: rgba(167, 139, 250, 0.08); color: #ede9fe; }
+        .ai-hint { border-color: var(--c-hint); background: rgba(250, 204, 21, 0.08); color: #fef9c3; box-shadow: 0 0 20px rgba(250, 204, 21, 0.05); }
+
+        .msg-sys { align-self: center; font-size: 0.85rem; color: var(--text-muted); background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 20px; margin: 5px 0; border: 1px solid var(--border); display: flex; align-items: center; gap: 6px;}
+
+        .placeholder-msg { align-self: flex-start; display: flex; align-items: center; gap: 10px; padding: 12px 20px; background: rgba(255,255,255,0.02); border-radius: 12px; color: var(--text-muted); font-size: 0.9rem; animation: pulse 1.5s infinite; border: 1px dashed var(--border); }
+
+        /* 猜谜报告 */
+        .report { min-width: 280px; display: flex; flex-direction: column; gap: 8px; }
+        .report-head { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 5px; align-items: baseline;}
+        .report-score { font-family: var(--font-mono); font-weight: 900; color: var(--guess); font-size: 1.3rem; }
+        .report-body { white-space: pre-wrap; font-family: var(--font-serif); font-size: 1.05rem; }
+        .hl-ok { border-bottom: 2px solid var(--c-yes); color: white; background: rgba(74, 222, 128, 0.1); }
+        .hl-no { text-decoration: line-through; text-decoration-color: var(--c-no); color: rgba(255,255,255,0.4); }
+        .report-comment { font-size: 0.9rem; color: var(--primary); font-style: italic; margin-top: 5px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); display: flex; gap: 6px; align-items: flex-start;}
+
+        /* 结算卡片 */
+        .inline-result {
+            align-self: center; width: 100%; max-width: 500px;
+            background: rgba(15, 23, 42, 0.95); border: 1px solid var(--guess);
+            border-radius: 20px; padding: 30px; text-align: center; margin: 20px 0;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5); animation: popIn 0.5s;
+        }
+        .inline-result .score { font-size: 4rem; font-weight: 900; color: var(--guess); line-height: 1; margin: 10px 0; font-family: var(--font-serif); }
+        .inline-result .truth-box { text-align: left; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 10px; margin: 20px 0; font-size: 0.95rem; color: #e2e8f0; line-height: 1.6; max-height: 300px; overflow-y: auto; font-family: var(--font-serif); }
+
+        /* 输入区 */
+        .input-wrapper {
+            flex-shrink: 0; padding: 15px; border-radius: var(--radius-lg);
+            display: flex; flex-direction: column; gap: 12px; 
+            transition: background 0.3s, border 0.3s;
+        }
+
+        .input-row { display: flex; gap: 12px; align-items: flex-end; position: relative; }
+        
+        .input-stack {
+            flex: 1; position: relative; transition: height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            min-height: 54px; 
+        }
+        .mode-guess .input-stack { min-height: 100px; }
+
+        .game-input {
+            width: 100%; position: absolute; top: 0; left: 0;
+            background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+            padding: 16px; border-radius: 14px; color: white; font-size: 1rem;
+            resize: none; font-family: var(--font-ui); line-height: 1.5;
+            transition: opacity 0.3s, transform 0.3s, border-color 0.3s, background 0.3s;
+            transform-origin: top center;
+        }
+        
+        .input-ask { z-index: 1; opacity: 1; transform: scale(1); border-color: rgba(56, 189, 248, 0.3); height: 100%; }
+        .input-guess { z-index: 0; opacity: 0; transform: scale(0.96); border-color: rgba(245, 158, 11, 0.3); height: 100%; pointer-events: none; }
+        
+        .mode-ask .input-ask { z-index: 2; opacity: 1; transform: scale(1); pointer-events: auto; }
+        .mode-ask .input-ask:focus { border-color: var(--primary); background: rgba(56, 189, 248, 0.05); box-shadow: 0 0 15px rgba(56, 189, 248, 0.1); }
+        .mode-ask .input-guess { z-index: 1; opacity: 0; transform: scale(0.96); pointer-events: none; }
+
+        .mode-guess .input-guess { z-index: 2; opacity: 1; transform: scale(1); pointer-events: auto; }
+        .mode-guess .input-guess:focus { border-color: var(--guess); background: rgba(245, 158, 11, 0.05); box-shadow: 0 0 15px rgba(245, 158, 11, 0.1); }
+        .mode-guess .input-ask { z-index: 1; opacity: 0; transform: scale(0.96); pointer-events: none; }
+
+        .send-btn {
+            width: 52px; height: 52px; border-radius: 14px; border: none;
+            background: var(--text-main); color: black; font-size: 1.4rem; cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .mode-ask .send-btn { background: var(--primary); color: #0f172a; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3); }
+        .mode-guess .send-btn { background: var(--guess); color: #0f172a; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); }
+        .send-btn:hover { transform: translateY(-2px) scale(1.05); }
+        .send-btn:active { transform: scale(0.95); }
+
+        .mode-switch { 
+            display: flex; align-items: center; position: relative;
+            background: rgba(0,0,0,0.2); padding: 4px; border-radius: 10px; 
+            width: fit-content; flex: 0 0 auto;
+        }
+        .glider {
+            position: absolute; top: 4px; left: 4px; height: calc(100% - 8px); 
+            background: var(--primary); border-radius: 8px; z-index: 1;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s;
+            box-shadow: 0 2px 10px rgba(56, 189, 248, 0.3);
+        }
+        .mode-guess .glider { background: var(--guess); box-shadow: 0 2px 10px rgba(245, 158, 11, 0.3); }
+
+        .mode-btn { 
+            padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; 
+            color: var(--text-muted); transition: color 0.2s; 
+            display: flex; gap: 6px; align-items: center; position: relative; z-index: 2;
+        }
+        .mode-btn.active { color: #0f172a; font-weight: bold; }
+        
+        /* API Modal */
+        .modal-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(2, 6, 23, 0.8); z-index: 100; 
+            display: flex; align-items: center; justify-content: center; 
+            backdrop-filter: blur(8px);
+            opacity: 0; visibility: hidden; pointer-events: none;
+            transition: opacity 0.3s ease, visibility 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; pointer-events: auto; }
+        
+        .modal-card { 
+            width: 90%; max-width: 500px; padding: 32px; 
+            display: flex; flex-direction: column; gap: 16px;
+            transform: scale(0.95) translateY(10px); opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: rgba(30, 41, 59, 0.90);
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+        }
+        .modal-overlay.active .modal-card { transform: scale(1) translateY(0); opacity: 1; }
+
+        .modal-header { display:flex; justify-content:space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 5px; }
+        .modal-title { font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; gap: 10px; color: var(--text-main); }
+        
+        .api-group { display: flex; flex-direction: column; gap: 6px; }
+        .api-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .input-with-btn { display: flex; gap: 8px; position: relative; }
+        .api-input { 
+            flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border); 
+            padding: 10px 12px; border-radius: 10px; color: white; font-family: var(--font-mono); font-size: 0.85rem;
+            transition: 0.2s;
+        }
+        .api-input:focus { border-color: var(--primary); background: rgba(56, 189, 248, 0.05); }
+
+        /* 快捷芯片 */
+        .preset-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+        .chip {
+            font-size: 0.75rem; padding: 4px 10px; background: rgba(255,255,255,0.05); 
+            border-radius: 20px; color: var(--text-muted); cursor: pointer; border: 1px solid transparent; transition: 0.2s;
+        }
+        .chip:hover { background: rgba(56, 189, 248, 0.1); color: var(--primary); border-color: rgba(56, 189, 248, 0.2); }
+
+        /* 模型选择单列 Flex */
+        .model-row { display: flex; flex-direction: column; gap: 12px; }
+        
+        /* 下拉列表 */
+        .model-dropdown {
+            position: absolute; top: 100%; left: 0; width: 100%;
+            background: rgba(30, 41, 59, 0.98); border: 1px solid var(--border);
+            border-radius: 0 0 10px 10px; z-index: 50;
+            max-height: 200px; overflow-y: auto; display: none;
+            backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .model-dropdown.active { display: block; }
+        .model-option { padding: 8px 12px; font-size: 0.85rem; cursor: pointer; color: var(--text-muted); transition: 0.2s; font-family: var(--font-mono); }
+        .model-option:hover { background: rgba(56, 189, 248, 0.1); color: var(--text-main); }
+
+        /* 全屏列表浮层 (保留作为 List Icon 的功能) */
+        .model-picker-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(30, 41, 59, 0.98); z-index: 10;
+            border-radius: 24px; padding: 20px;
+            display: flex; flex-direction: column; gap: 10px;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        .model-picker-overlay.active { opacity: 1; pointer-events: auto; }
+        
+        .model-list {
+            flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
+            padding-right: 5px;
+        }
+        .model-item {
+            padding: 10px; border-radius: 8px; cursor: pointer; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.9rem;
+            transition: 0.2s; display: flex; justify-content: space-between;
+        }
+        .model-item:hover { background: rgba(255,255,255,0.05); color: var(--text-main); }
+
+        #confetti { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+
+        @keyframes pulse { 0% { opacity: 0.5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0.5; transform: scale(1); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes bubblePop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="confetti"></canvas>
+
+    <div class="modal-overlay" id="apiModal">
+        <div class="modal-card glass-panel">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span class="iconify" data-icon="lucide:settings" style="color:var(--primary)"></span>
+                    API 配置
+                </div>
+                <button id="apiCloseBtn" class="btn" onclick="Api.close()" style="width: 36px; height: 36px; padding:0; border-radius:50%;">
+                    <span class="iconify" data-icon="lucide:x"></span>
+                </button>
+            </div>
+            
+            <div id="modelPicker" class="model-picker-overlay">
+                <div style="display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px;">
+                    <button class="btn" onclick="Api.closePicker()" style="padding:6px;"><span class="iconify" data-icon="lucide:arrow-left"></span></button>
+                    <input type="text" id="modelSearch" class="api-input" placeholder="搜索模型..." oninput="Api.filterModels(this.value)">
+                </div>
+                <div id="modelList" class="model-list"></div>
+            </div>
+
+            <div class="api-group">
+                <label class="api-label">Base URL</label>
+                <div class="input-with-btn">
+                    <input type="text" id="apiBase" class="api-input" placeholder="e.g. https://api.deepseek.com/v1">
+                    <button class="btn scan-success" onclick="Api.fetchModels()" title="扫描模型" style="padding:0 12px; gap:6px;">
+                        <span class="iconify" data-icon="lucide:refresh-cw"></span> 扫描模型
+                    </button>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="preset-chips">
+                        <div class="chip" onclick="Api.setBaseUrl('https://api.openai.com/v1')">OpenAI</div>
+                        <div class="chip" onclick="Api.setBaseUrl('https://dashscope.aliyuncs.com/compatible-mode/v1')">阿里云百炼</div>
+                        <div class="chip" onclick="Api.setBaseUrl('https://api.deepseek.com/v1')">DeepSeek</div>
+                        <div class="chip" onclick="Api.setBaseUrl('http://localhost:1234/v1')">LM Studio</div>
+                    </div>
+                    <div id="scanStatus" style="font-size:0.75rem; color:var(--c-yes); transition:opacity 0.5s; opacity:0;"></div>
+                </div>
+            </div>
+            
+            <div class="api-group">
+                <label class="api-label">API Key</label>
+                <input type="password" id="apiKey" class="api-input" placeholder="sk-...">
+            </div>
+
+            <div class="model-row">
+                <div class="api-group">
+                    <label class="api-label">故事模型 (Reasoning)</label>
+                    <div class="input-with-btn">
+                        <input type="text" id="modelStory" class="api-input" placeholder="e.g. deepseek-r1" oninput="Api.handleInput('story', this.value)" onfocus="Api.handleInput('story', this.value)">
+                        <div id="dd-story" class="model-dropdown"></div>
+                        <button class="btn" onclick="Api.openPicker('story')" style="padding:0 10px;"><span class="iconify" data-icon="lucide:list"></span></button>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <button class="btn" onclick="Api.test('story')" style="font-size:0.75rem; padding:4px 8px;">
+                            <span class="iconify" data-icon="lucide:play"></span> 测试
+                        </button>
+                        <div id="testStory" style="font-size:0.75rem;"></div>
+                    </div>
+                </div>
+
+                <div class="api-group">
+                    <label class="api-label">裁判模型 (Chat)</label>
+                    <div class="input-with-btn">
+                        <input type="text" id="modelFast" class="api-input" placeholder="e.g. qwen2.5-30b-a3b" oninput="Api.handleInput('fast', this.value)" onfocus="Api.handleInput('fast', this.value)">
+                        <div id="dd-fast" class="model-dropdown"></div>
+                        <button class="btn" onclick="Api.openPicker('fast')" style="padding:0 10px;"><span class="iconify" data-icon="lucide:list"></span></button>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <button class="btn" onclick="Api.test('fast')" style="font-size:0.75rem; padding:4px 8px;">
+                            <span class="iconify" data-icon="lucide:play"></span> 测试
+                        </button>
+                        <div id="testFast" style="font-size:0.75rem;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn primary" onclick="Api.save()" style="width:100%; padding:12px; margin-top:5px;">
+                <span class="iconify" data-icon="lucide:save"></span> 保存配置
+            </button>
+        </div>
+    </div>
+
+    <div id="page-home" class="page active">
+        <div class="home-layout">
+            <div class="title-section glass-panel">
+                <div>
+                    <div style="color:var(--primary); font-size:0.85rem; letter-spacing:3px; font-weight:700; margin-bottom:5px; font-family:var(--font-ui);">LATERAL THINKING</div>
+                    <h1 class="game-title">LABYRINTH</h1>
+                    <div style="font-size:0.9rem; color:var(--text-muted); margin-top:5px; font-family:var(--font-serif); font-style:italic;">探索逻辑的迷宫，还原故事的真相。</div>
+                </div>
+                
+                <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="difficulty-selector">
+                            <div class="diff-btn active" onclick="Game.setDiff('easy', this)">简单</div>
+                            <div class="diff-btn" onclick="Game.setDiff('normal', this)">常规</div>
+                            <div class="diff-btn" onclick="Game.setDiff('hard', this)">困难</div>
+                        </div>
+                        <button class="btn" onclick="Api.open()" title="设置">
+                            <span class="iconify" data-icon="lucide:settings-2"></span>
+                        </button>
+                    </div>
+                    <div id="diffDesc" style="font-size:0.85rem; color:#94a3b8; margin-top:10px; padding:0 4px; font-family:var(--font-ui); line-height:1.5;">逻辑直观，线索明显。<br>无限次提问与提示机会。</div>
+                </div>
+
+                <div id="tagTip" style="color:var(--primary); font-size:0.9rem; min-height:1.2em; display:flex; align-items:center; gap:6px;">
+                    <span class="iconify" data-icon="lucide:mouse-pointer-2"></span> 请选择 1-4 个关键词
+                </div>
+                
+                <div style="display:flex; gap:12px;">
+                    <button class="btn" onclick="Bubble.refresh()">
+                        <span class="iconify" data-icon="lucide:refresh-cw"></span> 换一批
+                    </button>
+                    <button class="btn primary" onclick="Game.initNew()" style="flex:1">
+                        <span class="iconify" data-icon="lucide:play"></span> 开始推理
+                    </button>
+                </div>
+
+                <div id="historySection">
+                    <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; gap:6px;">
+                        <span class="iconify" data-icon="lucide:history"></span> 历史记录
+                    </div>
+                    <div id="historyList" class="history-list"></div>
+                </div>
+            </div>
+
+            <div class="bubble-section">
+                <div class="bubble-stage" id="bubbleContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="page-game" class="page">
+        <div class="game-container state-init" id="gameContainer">
+            
+            <div class="game-header glass-panel">
+                <div class="puzzle-title-row">
+                    <div>
+                        <h2 class="puzzle-title" id="gameTitle">正在构建迷宫...</h2>
+                        <div class="puzzle-meta">
+                            <span class="puzzle-tags" id="gameTags"></span>
+                        </div>
+                    </div>
+                    <div class="header-stats">
+                        <div id="turnCounter" class="stat-badge"><span class="iconify" data-icon="lucide:hourglass"></span> ∞ 轮</div>
+                        <div id="hintCounter" class="stat-badge"><span class="iconify" data-icon="lucide:lightbulb"></span> ∞ 提示</div>
+                    </div>
+                </div>
+                
+                <div id="thinkingBar" class="thinking-bar">
+                    <div class="thinking-dot"></div>
+                    <div class="thinking-label-container">
+                        <div class="thinking-label-track" id="thinkingLabelTrack">
+                            <div class="thinking-label">思考中</div>
+                            <div class="thinking-label">生成标题</div>
+                            <div class="thinking-label">生成谜面</div>
+                            <div class="thinking-label">生成谜底</div>
+                            <div class="thinking-label">即将揭晓</div>
+                        </div>
+                    </div>
+                    <div class="thinking-content">
+                        <span id="thinkingText"></span>
+                    </div>
+                </div>
+
+                <div class="puzzle-text" id="gamePuzzle"></div>
+            </div>
+
+            <div class="chat-area" id="chatList"></div>
+
+            <div id="inputWrapper" class="input-wrapper glass-panel mode-ask">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="mode-switch">
+                        <div class="glider" id="modeGlider"></div>
+                        <div id="btnAsk" class="mode-btn active" onclick="Game.setMode('ask')">
+                            <span class="iconify" data-icon="lucide:message-circle-question"></span> 提问
+                        </div>
+                        <div id="btnGuess" class="mode-btn" onclick="Game.setMode('guess')">
+                            <span class="iconify" data-icon="lucide:search-check"></span> 猜谜
+                        </div>
+                    </div>
+                    <div style="min-width: 80px; text-align: right;">
+                        <button id="hintBtn" class="btn" onclick="Game.getHint()" style="color:var(--guess); border-color:rgba(245, 158, 11, 0.4); font-size:0.85rem; padding:6px 12px; background:rgba(245, 158, 11, 0.05);">
+                            <span class="iconify" data-icon="lucide:lightbulb"></span> 获取提示
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="input-row">
+                    <div class="input-stack" id="inputStack">
+                        <textarea id="inputAsk" class="game-input input-ask" placeholder="请输入一个是/非问句..." rows="1"></textarea>
+                        <textarea id="inputGuess" class="game-input input-guess" placeholder="输入完整的推理真相..." rows="3"></textarea>
+                    </div>
+                    <button class="send-btn" onclick="Game.send()">
+                        <span class="iconify" data-icon="lucide:arrow-up"></span>
+                    </button>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; padding:0 5px; opacity:0.6;">
+                    <button class="btn" style="color:var(--c-no); border:none; padding:0; font-size:0.85rem; background:transparent;" onclick="Game.quit()">
+                        <span class="iconify" data-icon="lucide:flag"></span> 放弃
+                    </button>
+                    <button class="btn" style="color:var(--text-muted); border:none; padding:0; font-size:0.85rem; background:transparent;" onclick="Game.backToHome()">
+                        <span class="iconify" data-icon="lucide:log-out"></span> 退出 (保存)
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+// ==================== Tools ====================
+const Utils = {
+    sleep: (ms) => new Promise(r => setTimeout(r, ms))
+};
+
+// ==================== Physics Bubble Engine 3.2 ====================
+const Bubble = {
+    nodes: [],
+    tags: [
+    {t:"校园",w:0.8},    {t:"都市",w:0.9},    {t:"罪案",w:0.9},    {t:"轻松",w:0.7},    {t:"反转",w:0.9},
+    {t:"恐怖",w:0.6},    {t:"日式",w:0.5},    {t:"科幻",w:0.4},    {t:"复仇",w:0.7},    {t:"误会",w:0.9},
+    {t:"温情",w:0.6},    {t:"逻辑",w:0.5},    {t:"心理",w:0.5},    {t:"怪谈",w:0.4},    {t:"职场",w:0.7},
+    {t:"家庭",w:0.8},    {t:"循环",w:0.3},    {t:"梦境",w:0.4},    {t:"食物",w:0.7},    {t:"童话",w:0.3},
+    {t:"古代",w:0.4},    {t:"密室",w:0.4},    {t:"规则",w:0.2},    {t:"双胞胎",w:0.4},    {t:"失忆",w:0.5},
+    {t:"遗产",w:0.5},    {t:"车祸",w:0.6},    {t:"电梯",w:0.4},    {t:"镜子",w:0.3},    {t:"日记",w:0.5},
+    {t:"剧本",w:0.6},    {t:"时间",w:0.4},    {t:"代码",w:0.2},    {t:"荒岛",w:0.3},    {t:"战争",w:0.4},
+    {t:"医院",w:0.7},    {t:"火车",w:0.5},    {t:"照片",w:0.6},    {t:"邻居",w:0.8},    {t:"外星",w:0.1},
+    {t:"魔术师",w:0.3},    {t:"小丑",w:0.3},    {t:"警察",w:0.7},    {t:"医生",w:0.7},    {t:"作家",w:0.5},
+    {t:"盲人",w:0.4},    {t:"哑巴",w:0.3},    {t:"替身",w:0.4},    {t:"间谍",w:0.4},    {t:"杀手",w:0.6},
+    {t:"玩偶",w:0.5},    {t:"机器人",w:0.3},    {t:"偶像",w:0.4},    {t:"粉丝",w:0.4},    {t:"流浪汉",w:0.3},
+    {t:"祖孙",w:0.5},    {t:"继母",w:0.3},    {t:"前任",w:0.6},    {t:"同桌",w:0.5},    {t:"室友",w:0.7},
+    {t:"手机",w:0.8},    {t:"信件",w:0.6},    {t:"录音",w:0.5},    {t:"礼物",w:0.7},    {t:"戒指",w:0.6},
+    {t:"毒药",w:0.6},    {t:"药物",w:0.5},    {t:"眼镜",w:0.4},    {t:"鞋子",w:0.3},    {t:"头发",w:0.3},
+    {t:"画作",w:0.4},    {t:"雕塑",w:0.2},    {t:"面具",w:0.4},    {t:"日历",w:0.3},    {t:"闹钟",w:0.4},
+    {t:"广播",w:0.3},    {t:"电视",w:0.4},    {t:"彩票",w:0.4},    {t:"保险单",w:0.6},    {t:"遗嘱",w:0.5},
+    {t:"暴风雪",w:0.3},    {t:"游乐园",w:0.4},    {t:"图书馆",w:0.5},    {t:"监狱",w:0.4},    {t:"法庭",w:0.4},
+    {t:"葬礼",w:0.5},    {t:"婚礼",w:0.5},    {t:"酒店",w:0.7},    {t:"阳台",w:0.6},    {t:"地下室",w:0.4},
+    {t:"阁楼",w:0.3},    {t:"井",w:0.2},    {t:"森林",w:0.4},    {t:"雪山",w:0.3},    {t:"深海",w:0.2},
+    {t:"太空",w:0.1},    {t:"网络",w:0.6},    {t:"直播间",w:0.5},    {t:"梦游",w:0.3},    {t:"平行世界",w:0.2},
+    {t:"谎言",w:0.9},    {t:"嫉妒",w:0.8},    {t:"偷窥",w:0.6},    {t:"暗恋",w:0.7},    {t:"守护",w:0.6},
+    {t:"绑架",w:0.6},    {t:"越狱",w:0.3},    {t:"自首",w:0.4},    {t:"整容",w:0.4},    {t:"变性",w:0.2},
+    {t:"催眠",w:0.4},    {t:"赌博",w:0.5},    {t:"交易",w:0.6},    {t:"契约",w:0.4},    {t:"献祭",w:0.2},
+    {t:"恶作剧",w:0.6},    {t:"试胆",w:0.3},    {t:"捉迷藏",w:0.4},    {t:"真心话",w:0.5},    {t:"生存游戏",w:0.3},
+    {t:"叙述性",w:0.5},    {t:"黑色幽默",w:0.4},    {t:"细思极恐",w:0.8},    {t:"致郁",w:0.4},    {t:"治愈",w:0.3},
+    {t:"宿命",w:0.3},    {t:"巧合",w:0.6},    {t:"蝴蝶效应",w:0.3},    {t:"AI觉醒",w:0.2},
+    {t:"颜色",w:0.3},    {t:"气味",w:0.3},    {t:"声音",w:0.4},    {t:"温度",w:0.3},    {t:"重力",w:0.1},
+    {t:"双重人格",w:0.4},    {t:"精神病",w:0.5},    {t:"色盲",w:0.2},    {t:"过敏",w:0.3},    {t:"强迫症",w:0.3},
+    {t:"电脑",w:0.6},    {t:"收音机",w:0.3},    {t:"钟表",w:0.5},    {t:"血液",w:0.5},    {t:"炸弹",w:0.3},
+    {t:"绳索",w:0.3},    {t:"钥匙",w:0.6},    {t:"锁",w:0.5},    {t:"地图",w:0.3},    {t:"蜡烛",w:0.3},
+    {t:"博物馆",w:0.4},    {t:"动物园",w:0.3},    {t:"餐厅",w:0.6},    {t:"酒吧",w:0.5},    {t:"网吧",w:0.4},
+    {t:"派对",w:0.6},    {t:"隧道",w:0.3},    {t:"桥",w:0.4},    {t:"秘密",w:0.8},    {t:"贪婪",w:0.6},
+    {t:"救赎",w:0.5},    {t:"背叛",w:0.7},    {t:"承诺",w:0.6},    {t:"诅咒",w:0.3},    {t:"预言",w:0.3},
+    {t:"既视感",w:0.3},    {t:"开放结局",w:0.4},    {t:"模仿",w:0.5},    {t:"审讯",w:0.4},    {t:"逃亡",w:0.5},
+    {t:"秘密通道",w:0.3},    {t:"隐藏身份",w:0.4},    {t:"时间旅行",w:0.2},    {t:"记忆碎片",w:0.4},    {t:"幻觉",w:0.3},
+
+],
+    selected: new Set(),
+    
+    init() {
+        this.container = document.getElementById('bubbleContainer');
+        this.refresh();
+        this.loop();
+    },
+
+    async refresh() {
+        if(this.nodes.length > 0) {
+            this.nodes.forEach(n => n.el.classList.add('exit'));
+            await Utils.sleep(400); 
+        }
+        
+        this.container.innerHTML = '';
+        this.selected.clear();
+        this.updateTip();
+        this.nodes = [];
+
+        const shuffled = [...this.tags].sort(() => 0.5 - Math.random()).slice(0, 25);
+        const rect = this.container.getBoundingClientRect();
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+
+        shuffled.forEach((tag, i) => {
+            const el = document.createElement('div');
+            el.className = 'bubble';
+            el.innerText = tag.t;
+            
+            const baseR = 32 + tag.w * 35 + Math.random() * 8;
+            
+            const node = {
+                id: i,
+                x: cx + (Math.random()-0.5)*50, 
+                y: cy + (Math.random()-0.5)*50,
+                vx: (Math.random()-0.5)*0.5, 
+                vy: (Math.random()-0.5)*0.5,
+                radius: baseR,
+                targetRadius: baseR,
+                mass: baseR * 2,
+                el: el,
+                tag: tag.t,
+                hover: false
+            };
+            
+            el.style.width = (node.radius * 2) + 'px';
+            el.style.height = (node.radius * 2) + 'px';
+            
+            el.onmouseenter = () => node.hover = true;
+            el.onmouseleave = () => node.hover = false;
+            el.onclick = () => this.toggle(node);
+            
+            this.container.appendChild(el);
+            this.nodes.push(node);
+        });
+    },
+
+    toggle(node) {
+        if(this.selected.has(node.tag)) {
+            this.selected.delete(node.tag);
+            node.el.classList.remove('selected');
+            node.targetRadius = node.targetRadius / 1.3;
+        } else {
+            if(this.selected.size >= 4) return;
+            this.selected.add(node.tag);
+            node.el.classList.add('selected');
+            node.targetRadius = node.targetRadius * 1.3;
+        }
+        this.updateTip();
+    },
+
+    updateTip() {
+        document.getElementById('tagTip').innerHTML = this.selected.size ? `<span class="iconify" data-icon="lucide:check-circle" style="color:var(--c-yes)"></span> 已选: ${Array.from(this.selected).join(', ')}` : `<span class="iconify" data-icon="lucide:mouse-pointer-2"></span> 请选择 1-4 个关键词`;
+    },
+
+    loop() {
+        const W = this.container.offsetWidth;
+        const H = this.container.offsetHeight;
+        const center = { x: W/2, y: H/2 };
+        const kCenter = 0.005; 
+        const kColl = 0.3;      
+        const damping = 0.92;   
+        const maxV = 2.5;       
+
+        this.nodes.forEach(node => {
+            if(node.hover) {
+                node.vx = 0; node.vy = 0; 
+            } else {
+                node.vx += (center.x - node.x) * kCenter;
+                node.vy += (center.y - node.y) * kCenter;
+            }
+
+            if(Math.abs(node.radius - node.targetRadius) > 0.1) {
+                node.radius += (node.targetRadius - node.radius) * 0.1;
+                node.el.style.width = (node.radius*2) + 'px';
+                node.el.style.height = (node.radius*2) + 'px';
+            }
+
+            this.nodes.forEach(other => {
+                if(node === other) return;
+                const dx = other.x - node.x;
+                const dy = other.y - node.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                const minDist = node.radius + other.radius + 4; 
+
+                if(dist < minDist) {
+                    if (dist === 0) dist = 0.1;
+                    const overlap = minDist - dist;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    
+                    const p = overlap * 0.08; 
+                    if(!node.hover) { node.x -= nx * p; node.y -= ny * p; }
+                    if(!other.hover) { other.x += nx * p; other.y += ny * p; }
+
+                    const dvx = node.vx - other.vx;
+                    const dvy = node.vy - other.vy;
+                    const velAlongNormal = dvx * nx + dvy * ny;
+
+                    if (velAlongNormal < 0) {
+                        const j = -(1 + 0.5) * velAlongNormal;
+                        const impulse = j * 0.5;
+                        if(!node.hover) {
+                            node.vx += impulse * nx * kColl;
+                            node.vy += impulse * ny * kColl;
+                        }
+                        if(!other.hover) {
+                            other.vx -= impulse * nx * kColl;
+                            other.vy -= impulse * ny * kColl;
+                        }
+                    } else {
+                        if(!node.hover) { node.vx *= 0.6; node.vy *= 0.6; }
+                        if(!other.hover) { other.vx *= 0.6; other.vy *= 0.6; }
+                    }
+                }
+            });
+
+            if(!node.hover) {
+                const v = Math.sqrt(node.vx*node.vx + node.vy*node.vy);
+                if(v > maxV) { node.vx = (node.vx/v)*maxV; node.vy = (node.vy/v)*maxV; }
+                
+                node.vx *= damping;
+                node.vy *= damping;
+                node.x += node.vx;
+                node.y += node.vy;
+
+                if(node.x - node.radius < 0) { node.x = node.radius; node.vx *= -1; }
+                if(node.x + node.radius > W) { node.x = W - node.radius; node.vx *= -1; }
+                if(node.y - node.radius < 0) { node.y = node.radius; node.vy *= -1; }
+                if(node.y + node.radius > H) { node.y = H - node.radius; node.vy *= -1; }
+            }
+
+            node.el.style.left = (node.x - node.radius) + 'px';
+            node.el.style.top = (node.y - node.radius) + 'px';
+        });
+
+        requestAnimationFrame(() => this.loop());
+    }
+};
+
+// ==================== API Module ====================
+const Api = {
+    cfg: { base:"", key:"", storyModel:"", fastModel:"" },
+    availableModels: [],
+    activeTarget: null,
+    
+    init() {
+        const s = localStorage.getItem('labyrinth_cfg');
+        if(s) this.cfg = JSON.parse(s);
+        if(!this.cfg.base) this.open(true);
+        
+        // Auto close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.input-with-btn')) {
+                document.querySelectorAll('.model-dropdown').forEach(el => el.classList.remove('active'));
+            }
+        });
+    },
+    open(force) {
+        document.getElementById('apiModal').classList.add('active');
+        document.getElementById('apiBase').value = this.cfg.base || "";
+        document.getElementById('apiKey').value = this.cfg.key || "";
+        document.getElementById('modelStory').value = this.cfg.storyModel || "";
+        document.getElementById('modelFast').value = this.cfg.fastModel || "";
+        const btn = document.getElementById('apiCloseBtn');
+        if(btn) btn.style.display = force ? 'none' : 'block';
+    },
+    close() { 
+        if(document.getElementById('apiCloseBtn').style.display === 'none' && !localStorage.getItem('labyrinth_cfg')) return;
+        document.getElementById('apiModal').classList.remove('active'); 
+        this.closePicker();
+    },
+    save() {
+        this.cfg.base = document.getElementById('apiBase').value.replace(/\/$/, "");
+        this.cfg.key = document.getElementById('apiKey').value;
+        this.cfg.storyModel = document.getElementById('modelStory').value;
+        this.cfg.fastModel = document.getElementById('modelFast').value;
+        if(!this.cfg.base || !this.cfg.storyModel) return alert("请填写完整配置");
+        localStorage.setItem('labyrinth_cfg', JSON.stringify(this.cfg));
+        this.close();
+    },
+    setBaseUrl(url) {
+        document.getElementById('apiBase').value = url;
+    },
+    
+    // Model Fetching & Dropdown Logic
+    async fetchModels() {
+        const base = document.getElementById('apiBase').value.replace(/\/$/, "");
+        const key = document.getElementById('apiKey').value;
+        if(!base) return alert("请先填写 Base URL");
+        
+        const btn = document.querySelector('.scan-success');
+        const iconHtml = btn.innerHTML;
+        btn.innerHTML = `<span class="iconify" data-icon="lucide:loader-2"></span> 扫描中...`;
+        
+        try {
+            const res = await fetch(`${base}/models`, {
+                headers: { 'Authorization': `Bearer ${key}` }
+            });
+            const data = await res.json();
+            if(data && data.data) {
+                this.availableModels = data.data.map(m => m.id).sort();
+                
+                // Show small success message
+                const statusEl = document.getElementById('scanStatus');
+                statusEl.innerText = `已获取 ${this.availableModels.length} 个模型`;
+                statusEl.style.opacity = 1;
+                setTimeout(() => statusEl.style.opacity = 0, 3000);
+            } else {
+                alert("未找到模型列表，请检查配置");
+            }
+        } catch(e) {
+            alert("获取模型列表失败: " + e.message);
+        } finally {
+            btn.innerHTML = iconHtml;
+        }
+    },
+    
+    handleInput(target, val) {
+        const dd = document.getElementById(target === 'story' ? 'dd-story' : 'dd-fast');
+        if (this.availableModels.length === 0) {
+            dd.classList.remove('active');
+            return;
+        }
+        
+        const filtered = this.availableModels.filter(m => m.toLowerCase().includes(val.toLowerCase()));
+        dd.innerHTML = '';
+        
+        if (filtered.length > 0) {
+            dd.classList.add('active');
+            filtered.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'model-option';
+                div.innerText = m;
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    document.getElementById(target === 'story' ? 'modelStory' : 'modelFast').value = m;
+                    dd.classList.remove('active');
+                };
+                dd.appendChild(div);
+            });
+        } else {
+            dd.classList.remove('active');
+        }
+    },
+    
+    // Legacy full picker (kept for list button)
+    openPicker(target) {
+        if(this.availableModels.length === 0) {
+            if(confirm("暂无模型数据，是否立即扫描？")) this.fetchModels().then(() => {
+                if(this.availableModels.length > 0) this.openPicker(target);
+            });
+            return;
+        }
+        this.activeTarget = target;
+        document.getElementById('modelPicker').classList.add('active');
+        this.renderPicker(this.availableModels);
+    },
+    closePicker() {
+        document.getElementById('modelPicker').classList.remove('active');
+        document.getElementById('modelSearch').value = '';
+    },
+    renderPicker(list) {
+        const el = document.getElementById('modelList');
+        el.innerHTML = '';
+        list.forEach(m => {
+            const d = document.createElement('div');
+            d.className = 'model-item';
+            d.innerText = m;
+            d.onclick = () => {
+                document.getElementById(this.activeTarget === 'story' ? 'modelStory' : 'modelFast').value = m;
+                this.closePicker();
+            };
+            el.appendChild(d);
+        });
+    },
+    filterModels(q) {
+        if(!q) return this.renderPicker(this.availableModels);
+        const filtered = this.availableModels.filter(m => m.toLowerCase().includes(q.toLowerCase()));
+        this.renderPicker(filtered);
+    },
+
+    async test(type) {
+        const el = document.getElementById(type==='story'?'testStory':'testFast');
+        const model = document.getElementById(type==='story'?'modelStory':'modelFast').value;
+        el.innerText = "Connecting...";
+        el.style.color = "var(--text-muted)";
+        
+        const payload = { model: model, messages: [{role:"user", content:"hi"}], max_tokens:1 };
+        console.group(`🚀 [API REQ] ${model}`);
+        console.log("URL:", `${document.getElementById('apiBase').value}/chat/completions`);
+        console.log("Headers:", { 'Content-Type':'application/json', 'Authorization':`Bearer ${document.getElementById('apiKey').value}` });
+        console.log("Body:", JSON.stringify(payload, null, 2));
+        console.groupEnd();
+
+        try {
+            const res = await fetch(`${document.getElementById('apiBase').value}/chat/completions`, {
+                method:'POST',
+                headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${document.getElementById('apiKey').value}` },
+                body: JSON.stringify(payload)
+            });
+            if(res.ok) {
+                el.innerHTML = `<span style="color:var(--c-yes)">✅ 成功</span>`;
+            } else {
+                el.innerHTML = `<span style="color:var(--c-no)">❌ 失败 ${res.status}</span>`;
+            }
+        } catch(e) { el.innerHTML = `<span style="color:var(--c-no)">❌ 网络错误</span>`; }
+    },
+    
+    async stream(model, messages, callbacks, options={}) {
+        const payload = {
+            model: model, messages: messages, stream: true
+        };
+        if(options.temp !== undefined) payload.temperature = options.temp;
+        if(options.thinking) payload.enable_thinking = true;
+
+        console.group(`🚀 [API REQ] ${model}`);
+        console.log("URL:", `${this.cfg.base}/chat/completions`);
+        console.log("Headers:", { 'Content-Type':'application/json', 'Authorization':`Bearer ${this.cfg.key}` });
+        console.log("Body:", JSON.stringify(payload, null, 2));
+        console.groupEnd();
+
+        try {
+            const res = await fetch(`${this.cfg.base}/chat/completions`, {
+                method:'POST',
+                headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${this.cfg.key}` },
+                body: JSON.stringify(payload)
+            });
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let fullText = "";
+            let started = false;
+
+            while(true) {
+                const {done, value} = await reader.read();
+                if(done) break;
+                const lines = decoder.decode(value, {stream:true}).split('\n');
+                for(const line of lines) {
+                    if(line.startsWith('data: ')) {
+                        try {
+                            const json = JSON.parse(line.substring(6));
+                            const delta = json.choices[0].delta;
+                            
+                            // 统一合并 think 和 content
+                            let chunk = "";
+                            if(delta.reasoning_content) chunk += delta.reasoning_content;
+                            if(delta.content) chunk += delta.content;
+
+                            if(chunk) {
+                                if(!started && callbacks.onStart) { callbacks.onStart(); started = true; }
+                                fullText += (delta.content || "");
+                                if(callbacks.onContent) callbacks.onContent(chunk, fullText);
+                            }
+                        } catch(e){}
+                    }
+                }
+            }
+            
+            console.log("%c[API RES] Complete Content:", "color:green; font-weight:bold", fullText);
+
+            if(callbacks.onFinish) callbacks.onFinish(fullText);
+        } catch(e) {
+            console.error(e);
+            if(callbacks.onError) callbacks.onError(e);
+        }
+    }
+};
+
+// ==================== UI & Logic ====================
+const UI = {
+    switchPage(to) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(to).classList.add('active');
+    },
+    
+    addMsg(role, txt, id=null, isHtml=false) {
+        const div = document.createElement('div');
+        div.className = `msg msg-${role}`;
+        
+        if(role === 'ai' && !isHtml) {
+            const lower = txt.toLowerCase();
+            if(lower.includes('提示') || lower.includes('hint') || lower.includes('💡')) {
+                div.classList.add('ai-hint');
+            }
+            else if(txt.includes('是') && !txt.includes('不是')) div.classList.add('ai-yes');
+            else if(txt.includes('不是')) div.classList.add('ai-no');
+            else if(txt.includes('无关')) div.classList.add('ai-irr');
+            else if(txt.includes('是') && txt.includes('不是')) div.classList.add('ai-amb');
+        }
+
+        if(isHtml) div.innerHTML = txt;
+        else div.innerText = txt;
+        if(id) div.id = id;
+        const list = document.getElementById('chatList');
+        list.appendChild(div);
+        this.scroll();
+    },
+    
+    addPlaceholder(text) {
+        const id = 'ph-'+Date.now();
+        const div = document.createElement('div');
+        div.id = id;
+        div.className = 'placeholder-msg';
+        div.innerHTML = `<div class="thinking-dot"></div> ${text}`;
+        document.getElementById('chatList').appendChild(div);
+        this.scroll();
+        return id;
+    },
+    
+    replacePlaceholder(id, content, role, isHtml=false) {
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.className = `msg msg-${role}`;
+        
+        if(role === 'ai' && !isHtml) {
+            const lower = content.toLowerCase();
+            if(lower.includes('提示') || lower.includes('hint') || lower.includes('💡')) {
+                el.classList.add('ai-hint');
+            }
+            else if(content.includes('是') && !content.includes('不是')) el.classList.add('ai-yes');
+            else if(content.includes('不是')) el.classList.add('ai-no');
+            else if(content.includes('无关')) el.classList.add('ai-irr');
+        }
+
+        if(isHtml) el.innerHTML = content;
+        else el.innerText = content;
+        this.scroll();
+    },
+    
+    scroll() {
+        const list = document.getElementById('chatList');
+        list.scrollTo({ top: list.scrollHeight + 150, behavior: 'smooth' });
+    },
+
+    setThinkingState(state) {
+        const bar = document.getElementById('thinkingBar');
+        if(!state) { 
+            bar.classList.remove('active'); 
+            bar.classList.remove('generating'); 
+            this.PhaseMgr.reset();
+            this.SmoothText.reset();
+            return; 
+        }
+        bar.classList.add('active');
+        if(state === 'thinking') {
+            bar.classList.remove('generating');
+        } 
+    },
+    
+    updateTitleSmooth(newTitle) {
+        const el = document.getElementById('gameTitle');
+        el.classList.add('switching');
+        setTimeout(() => {
+            el.innerText = newTitle;
+            el.classList.remove('switching');
+        }, 300);
+    },
+
+    // 平滑文字滚动模块 (Typewriter effect with buffer)
+    SmoothText: {
+        buffer: "",
+        el: null,
+        interval: null,
+        init() { this.el = document.getElementById('thinkingText'); },
+        push(text) {
+            this.buffer += text.replace(/[\r\n]/g, " ");
+            if(!this.interval) this.play();
+        },
+        play() {
+            this.interval = requestAnimationFrame(() => {
+                if(this.buffer.length > 0) {
+                    // 动态速度：积压越多跑越快
+                    const speed = Math.max(1, Math.floor(this.buffer.length / 5));
+                    const chunk = this.buffer.slice(0, speed);
+                    this.buffer = this.buffer.slice(speed);
+                    
+                    // 限制 DOM 长度防止内存溢出，但利用 Flex-End 实现左移
+                    let current = this.el.innerText + chunk;
+                    if(current.length > 300) current = current.slice(-300);
+                    this.el.innerText = current;
+                    
+                    this.play();
+                } else {
+                    this.interval = null;
+                }
+            });
+        },
+        reset() {
+            this.buffer = "";
+            if(this.el) this.el.innerText = "";
+            cancelAnimationFrame(this.interval);
+            this.interval = null;
+        }
+    },
+
+    // 阶段标签管理器 (Intelligent Delay & Sync)
+    PhaseMgr: {
+        queue: [],
+        currentIdx: 0,
+        lastScheduledIdx: 0,
+        lastSwitch: 0,
+        timer: null,
+        completionCallback: null, 
+        
+        request(idx) {
+            // Only allow moving forward
+            if(idx <= this.lastScheduledIdx) return;
+            this.lastScheduledIdx = idx;
+            this.queue.push(idx);
+            this.process();
+        },
+        
+        waitAndFinish(cb) {
+            this.completionCallback = cb;
+            // Trigger process in case queue is already empty
+            if(this.queue.length === 0 && !this.timer) {
+                cb();
+                this.completionCallback = null;
+            }
+        },
+
+        process() {
+            if(this.timer) return; // 正在等待中
+            
+            const nextIdx = this.queue[0];
+            if(nextIdx === undefined) {
+                // Queue empty, check if we need to finish
+                if(this.completionCallback) {
+                    this.completionCallback();
+                    this.completionCallback = null;
+                }
+                return;
+            }
+
+            const now = Date.now();
+            const elapsed = now - this.lastSwitch;
+            
+            // 智能延迟逻辑：如果当前标签展示已超过1s，立即切换；否则只等待剩余时间
+            const delay = elapsed >= 1000 ? 0 : (1000 - elapsed);
+
+            this.timer = setTimeout(() => {
+                this.queue.shift();
+                this.currentIdx = nextIdx;
+                
+                // Update visuals
+                document.getElementById('thinkingLabelTrack').style.transform = `translateY(-${nextIdx * 20}px)`;
+                
+                // SYNC COLOR: Add 'generating' class only if index > 0
+                // This ensures color changes exactly when the label scrolls
+                const bar = document.getElementById('thinkingBar');
+                if(nextIdx > 0) bar.classList.add('generating');
+                else bar.classList.remove('generating');
+
+                this.lastSwitch = Date.now();
+                this.timer = null;
+                this.process(); // Continue processing queue
+            }, delay);
+        },
+        
+        reset() {
+            clearTimeout(this.timer);
+            this.timer = null;
+            this.queue = [];
+            this.currentIdx = 0;
+            this.lastScheduledIdx = 0;
+            this.lastSwitch = 0;
+            this.completionCallback = null;
+            document.getElementById('thinkingLabelTrack').style.transform = `translateY(0)`;
+            document.getElementById('thinkingBar').classList.remove('generating');
+        }
+    }
+};
+
+const Game = {
+    state: {
+        status: 'idle', diff: 'easy', tags: [], puzzle: null,
+        history: [], foundPoints: [],
+        turnsMax: 0, turnsUsed: 0, hintsMax: 0, hintsUsed: 0,
+        startTime: 0, draftAsk: "", draftGuess: "", titleFound: false
+    },
+
+    setDiff(d, el) {
+        this.state.diff = d;
+        document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+        if(el) el.classList.add('active');
+        if(d === 'easy') { this.state.turnsMax = 0; this.state.hintsMax = 999; }
+        else if(d === 'normal') { this.state.turnsMax = 40; this.state.hintsMax = 5; }
+        else { this.state.turnsMax = 25; this.state.hintsMax = 0; }
+
+        // Update description
+        const desc = document.getElementById('diffDesc');
+        if(d === 'easy') desc.innerHTML = "逻辑直观，线索明显。<br>无限次提问与提示机会。";
+        else if(d === 'normal') desc.innerHTML = "标准海龟汤，需要一定的联想力和脑洞。<br>包含40轮提问，5次提示。";
+        else desc.innerHTML = "逻辑极度隐晦，包含复杂诡计或心理盲区。<br>仅25轮提问，无提示机会。";
+    },
+
+    initNew() {
+        if(Bubble.selected.size === 0) return alert("请至少选择 1 个关键词");
+        this.state.tags = Array.from(Bubble.selected);
+        this.state.history = [];
+        this.state.foundPoints = [];
+        this.state.turnsUsed = 0;
+        this.state.hintsUsed = 0;
+        this.state.startTime = Date.now();
+        this.state.draftAsk = ""; this.state.draftGuess = "";
+        this.state.status = 'generating';
+        this.state.titleFound = false; // Reset
+
+        // 1. 设置难度
+        this.setDiff(this.state.diff, document.querySelector('.diff-btn.active'));
+
+        // 2. 切换页面并初始化 UI
+        UI.switchPage('page-game');
+        
+        const container = document.getElementById('gameContainer');
+        container.className = 'game-container state-init';
+        
+        document.getElementById('inputWrapper').style.display = 'flex';
+        document.getElementById('inputWrapper').style.opacity = '0';
+        
+        document.getElementById('gameTitle').innerText = "正在构建迷宫...";
+        document.getElementById('gameTags').innerHTML = this.state.tags.join(' / ') + ` <span class="diff-badge">${this.state.diff}</span>`;
+        document.getElementById('chatList').innerHTML = '';
+        document.getElementById('gamePuzzle').style.display = 'none';
+        
+        // 3. 关键修复：在页面显示后立即更新状态栏，覆盖默认的 ∞
+        this.updateStats();
+
+        // 4. 重置输入框
+        this.setMode('ask');
+        
+        // 5. 初始化平滑滚动文本组件
+        UI.SmoothText.init();
+        
+        this.generate();
+    },
+
+    loadFromHistory(item) {
+        if(item.status === 'completed' || item.rank !== '-' || item.rank === 'F') {
+            UI.switchPage('page-game');
+            const container = document.getElementById('gameContainer');
+            container.className = 'game-container state-active state-over';
+            
+            document.getElementById('gameTitle').innerText = item.title;
+            document.getElementById('gameTags').innerText = item.tags.join(' / ') + ' [已归档]';
+            document.getElementById('gamePuzzle').style.display = 'block';
+            document.getElementById('gamePuzzle').innerText = item.puzzle.puzzle || item.puzzle;
+            
+            const list = document.getElementById('chatList');
+            list.innerHTML = '';
+            item.state.history.forEach(msg => {
+                if(msg.role === 'user') {
+                    let txt = msg.content.replace(/^\[提问\]\s*/, '').replace(/^\[猜谜\]\s*/, '');
+                    const isAsk = msg.content.includes('[提问]');
+                    UI.addMsg(isAsk?'user-ask':'user-guess', txt);
+                } else if(msg.role === 'assistant') {
+                    const isHtml = msg.content.trim().startsWith('<div');
+                    UI.addMsg('ai', msg.content, null, isHtml);
+                }
+            });
+            
+            const card = document.createElement('div');
+            card.className = 'inline-result';
+            card.innerHTML = `
+                <h2>${item.rank!=='F'?"🎉 任务完成":"💀 任务失败"}</h2>
+                <div class="score">${item.rank}</div>
+                <div style="font-size:0.9rem; color:#94a3b8">轮次: ${item.state.turnsUsed} | 提示: ${item.state.hintsUsed}</div>
+                <div class="truth-box"><strong>真相：</strong><br>${item.puzzle.answer || item.answer}</div>
+                <button class="btn" onclick="Game.backToHome()"><span class="iconify" data-icon="lucide:home"></span> 返回主页</button>
+            `;
+            document.getElementById('chatList').appendChild(card);
+            document.getElementById('inputWrapper').style.display = 'none';
+            return;
+        }
+        
+        this.state = JSON.parse(JSON.stringify(item.state));
+        UI.switchPage('page-game');
+        
+        const container = document.getElementById('gameContainer');
+        container.className = 'game-container state-active';
+        
+        const wrap = document.getElementById('inputWrapper');
+        wrap.style.display = 'flex';
+        wrap.style.opacity = '1';
+        
+        document.getElementById('gameTitle').innerText = this.state.puzzle.title;
+        document.getElementById('gameTags').innerHTML = this.state.tags.join(' / ') + ` <span class="diff-badge">${this.state.diff}</span>`;
+        document.getElementById('gamePuzzle').style.display = 'block';
+        document.getElementById('gamePuzzle').innerText = this.state.puzzle.puzzle;
+        
+        const list = document.getElementById('chatList');
+        list.innerHTML = '';
+        this.state.history.forEach(msg => {
+            if(msg.role === 'user') {
+                let txt = msg.content.replace(/^\[提问\]\s*/, '').replace(/^\[猜谜\]\s*/, '');
+                const isAsk = msg.content.includes('[提问]');
+                UI.addMsg(isAsk?'user-ask':'user-guess', txt);
+            } else if(msg.role === 'assistant') {
+                const isHtml = msg.content.trim().startsWith('<div');
+                UI.addMsg('ai', msg.content, null, isHtml);
+            }
+        });
+        
+        UI.addMsg('sys', '存档已恢复，可继续提问。');
+        this.updateStats();
+        this.setMode('ask');
+    },
+
+    generate() {
+        let diffPrompt = "";
+        let kpCount = "";
+        if(this.state.diff === 'easy') {
+            diffPrompt = "谜题应当逻辑直观，线索在谜面中较为明显，不需要过于复杂的脑洞。";
+            kpCount = "2-4";
+        } else if (this.state.diff === 'normal') {
+            diffPrompt = "谜题应当具备标准的海龟汤难度，需要玩家进行一定的联想和侧向思维，存在1-2个思维陷阱。";
+            kpCount = "4-6";
+        } else {
+            diffPrompt = "谜题应当极具挑战性，核心诡计非常隐晦，涉及复杂的因果链、心理盲区或冷门知识，需要极强的逻辑跳跃能力。";
+            kpCount = "6-10";
+        }
+
+        const prompt = `你是一位侧向思维谜题大师。任务：根据标签[${this.state.tags}]创作一个逻辑严密的悬疑海龟汤。
+        编写要求：
+            1. 谜题要基于物理或心理逻辑，适合通过问答和推理在有限轮次内解开。
+            2. 核心诡计应当在谜面中隐含线索，避免无厘头的谜底逻辑、过度依赖巧合或谜面与谜底脱节。
+            3. 谜面应构建一个不寻常、引人入胜的场景，激发用户的好奇心和探索真相的欲望；谜面应当引出对真相的提问。
+            4. 谜底应包含适当的反转或意外元素，但必须在逻辑上与整个谜题自洽且可被推理揭示。
+            5. 难度设置：当前难度为“${this.state.diff}”。${diffPrompt}
+        格式要求：
+            1. 必须提取出 ${kpCount} 个“谜底要点”（Key Points），这些要点用于匹配用户猜谜结果，量化其准确性和完整性。每个要点应为一句简短描述，涵盖谜底的关键方面，不应包含任何谜面已知的信息。
+            2. 最终输出严格JSON：{"title":"中文标题","puzzle":"简短谜面","answer":"完整真相", "key_points":["要点1","要点2"...]}。`;
+
+        UI.setThinkingState('thinking'); // 初始状态：思考中 (Index 0)
+
+        Api.stream(Api.cfg.storyModel, [{role:"user", content:prompt}], {
+            onStart: () => {
+                UI.setThinkingState('generating');
+                // 注意：不再默认切换到 Index 1
+            },
+            onContent: (chunk, fullText) => {
+                // 1. 将所有内容（包括 think 和 JSON）送入平滑滚动器
+                UI.SmoothText.push(chunk);
+
+                // 2. 实时流检测，请求切换标签（带排队机制）
+                // 仅当检测到 title 关键字时，才切换到生成标题
+                if(fullText.includes('"title":')) UI.PhaseMgr.request(1); 
+                if(fullText.includes('"puzzle":')) UI.PhaseMgr.request(2); 
+                if(fullText.includes('"answer":')) UI.PhaseMgr.request(3); 
+                if(fullText.includes('"key_points":')) UI.PhaseMgr.request(4); 
+
+                // 3. 实时提取标题并替换
+                if (!this.state.titleFound) {
+                    const match = fullText.match(/"title"\s*:\s*"(.*?)"/);
+                    if (match && match[1]) {
+                        this.state.titleFound = true;
+                        UI.updateTitleSmooth(match[1]);
+                    }
+                }
+            },
+            onFinish: (txt) => {
+                // BUG FIX: 强制请求最后的状态，确保动画队列完整
+                // 即使 API 结束了，也要让 UI 跑完 "生成谜底" -> "即将揭晓"
+                UI.PhaseMgr.request(3);
+                UI.PhaseMgr.request(4);
+
+                // 在数据接收完毕后，调用 waitAndFinish 等待动画播放完毕
+                // 然后再执行最终的 UI 切换
+                UI.PhaseMgr.waitAndFinish(() => {
+                    UI.setThinkingState(null);
+                    try {
+                        const clean = txt.replace(/```json/g,'').replace(/```/g,'').replace(/<think>[\s\S]*?<\/think>/g,'');
+                        const data = JSON.parse(clean);
+                        this.state.puzzle = data;
+                        
+                        document.getElementById('gameTitle').innerText = data.title; // 最终确保一致
+                        document.getElementById('gameTags').innerHTML = this.state.tags.join(' / ') + ` <span class="diff-badge">${this.state.diff}</span>`;
+                        document.getElementById('gamePuzzle').innerText = data.puzzle;
+                        document.getElementById('gamePuzzle').style.display = 'block';
+                        
+                        document.getElementById('gameContainer').className = 'game-container state-active';
+                        document.getElementById('inputWrapper').style.opacity = '1';
+                        
+                        this.state.status = 'active';
+                        this.saveHistory('active');
+                        this.updateStats();
+                        UI.addMsg('sys', '谜题已呈现。请提问/猜谜');
+
+                    } catch(e) {
+                        console.error(e);
+                        alert("生成格式错误，请检查 API 配置或重试");
+                        this.backToHome();
+                    }
+                });
+            }
+        }, { thinking: true });
+    },
+
+    mode: 'ask',
+    setMode(m) {
+        this.mode = m;
+        const wrap = document.getElementById('inputWrapper');
+        const bAsk = document.getElementById('btnAsk');
+        const bGuess = document.getElementById('btnGuess');
+        const glider = document.getElementById('modeGlider');
+        const iAsk = document.getElementById('inputAsk');
+        const iGuess = document.getElementById('inputGuess');
+
+        const activeBtn = m === 'ask' ? bAsk : bGuess;
+        glider.style.width = activeBtn.offsetWidth + 'px';
+        glider.style.left = activeBtn.offsetLeft + 'px';
+
+        if(m === 'ask') {
+            wrap.className = 'input-wrapper glass-panel mode-ask';
+            bAsk.classList.add('active'); bGuess.classList.remove('active');
+            setTimeout(()=>iAsk.focus(), 100);
+        } else {
+            wrap.className = 'input-wrapper glass-panel mode-guess';
+            bGuess.classList.add('active'); bAsk.classList.remove('active');
+            setTimeout(()=>iGuess.focus(), 100);
+        }
+    },
+
+    send() {
+        const input = this.mode === 'ask' ? document.getElementById('inputAsk') : document.getElementById('inputGuess');
+        const val = input.value.trim();
+        if(!val) return;
+        if(this.state.turnsMax > 0 && this.state.turnsUsed >= this.state.turnsMax) return;
+
+        input.value = '';
+        
+        UI.addMsg(this.mode==='ask'?'user-ask':'user-guess', val);
+        this.state.history.push({role:"user", content: this.mode==='ask' ? `[提问] ${val}` : `[猜谜] ${val}`});
+        
+        this.state.turnsUsed++;
+        this.updateStats();
+
+        if(this.mode === 'ask') this.handleAsk(val);
+        else this.handleGuess(val);
+
+        if(this.state.turnsMax > 0 && this.state.turnsUsed >= this.state.turnsMax) {
+            setTimeout(()=>this.finish(false), 2000);
+        }
+    },
+
+    handleAsk(q) {
+        const sys = `谜面：${this.state.puzzle.puzzle}。真相是：${this.state.puzzle.answer}。用户问：${q}。请回复JSON：{"res":"是/不是/无关/是也不是"}。提示：当用户的问题或判断在真相逻辑中明确成立时，回答“是”；当用户的问题或判断在真相逻辑中明确不成立时，回答“不是”；当问题与谜题无关或真相没有提供相关解释时，回答“无关”；当问题或答案本身存在二义性或悖论时，回答“是也不是”。不要包含任何多余解释。`;
+        const id = UI.addPlaceholder("分析中...");
+        
+        Api.stream(Api.cfg.fastModel, [{role:"system", content:sys}], {
+            onFinish: (txt) => {
+                try {
+                    const j = JSON.parse(txt.replace(/```json|```/g,''));
+                    UI.replacePlaceholder(id, j.res, 'ai');
+                    this.state.history.push({role:"assistant", content:j.res});
+                    this.saveHistory('active');
+                } catch(e) { UI.replacePlaceholder(id, "系统错误", 'ai'); }
+            }
+        }, { thinking: true }); 
+    },
+
+    handleGuess(g) {
+        const kps = JSON.stringify(this.state.puzzle.key_points);
+        const sys = `你是一个海龟汤裁判。
+        谜面：${this.state.puzzle.puzzle}
+        真相：${this.state.puzzle.answer}
+        真相要点表：${kps}
+        任务：分析用户猜测 "${g}"。
+        请逐句分析用户是否猜中了要点表中的内容。
+        返回JSON：
+        {
+            "matched_segments": ["用户猜测中与要点吻合的原文片段1"],
+            "wrong_segments": ["用户猜测中与真相明显矛盾的原文片段1"],
+            "achieved_points": ["对应真相要点表中的要点原文1"],
+            "comment": "一句话简短评语"
+        }
+        注意：matched_segments 和 wrong_segments 必须是用户猜测文本的子串。achieved_points 必须是 key_points 中被用户明显猜中的内容。`;
+
+        const id = UI.addPlaceholder("裁判正在评估...");
+        
+        Api.stream(Api.cfg.fastModel, [{role:"system", content:sys}], {
+            onThink: () => {}, 
+            onFinish: (txt) => {
+                try {
+                    const clean = txt.replace(/```json/g,'').replace(/```/g,'').replace(/<think>[\s\S]*?<\/think>/g,'');
+                    const res = JSON.parse(clean);
+                    
+                    if(res.achieved_points) {
+                        res.achieved_points.forEach(p => { if(!this.state.foundPoints.includes(p)) this.state.foundPoints.push(p); });
+                    }
+
+                    const total = this.state.puzzle.key_points.length;
+                    const found = this.state.foundPoints.length;
+                    const wrong = (res.wrong_segments||[]).length;
+                    let score = Math.round((found/total)*100) - (wrong*10);
+                    score = Math.max(0, Math.min(100, score));
+
+                    let htmlText = g.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+                    (res.matched_segments||[]).forEach(s => htmlText = htmlText.split(s).join(`<span class="hl-ok">${s}</span>`));
+                    (res.wrong_segments||[]).forEach(s => htmlText = htmlText.split(s).join(`<span class="hl-no">${s}</span>`));
+                    
+                    const html = `
+                    <div class="report">
+                        <div class="report-head"><span class="report-score">${score}分</span><span style="font-size:0.8rem;color:#94a3b8">进度 ${found}/${total}</span></div>
+                        <div class="report-body">${htmlText}</div>
+                        <div class="report-comment"><span class="iconify" data-icon="lucide:message-square"></span> ${res.comment || "..."}</div>
+                    </div>`;
+
+                    UI.replacePlaceholder(id, html, 'ai', true);
+                    this.state.history.push({role:"assistant", content:html});
+                    this.saveHistory('active');
+
+                    if(score >= 100 && found >= total) setTimeout(()=>this.finish(true), 1500);
+
+                } catch(e) { UI.replacePlaceholder(id, "评分失败", 'ai'); }
+            }
+        }, { thinking: true });
+    },
+
+    getHint() {
+        if(this.state.hintsMax > 0 && this.state.hintsUsed >= this.state.hintsMax) return;
+        this.state.hintsUsed++;
+        this.updateStats();
+
+        const pastHints = this.state.history
+            .filter(m => m.role === 'assistant' && (m.content.includes('💡') || m.content.includes('提示')))
+            .map(m => m.content);
+
+        const sys = `谜面：${this.state.puzzle.puzzle}。真相是：${this.state.puzzle.answer}。基于用户回答的历史：${JSON.stringify(this.state.history.slice(-4))}。已提供的提示：${JSON.stringify(pastHints)}。给出一句反问式提示，以引导用户向未解开的部分靠近。不要直接透露谜底。不要输出提示正文以外的任何内容。提示与之前的提示不应重复，也不要提示用户已经知道的内容`;
+        
+        const id = UI.addPlaceholder("正在生成提示...");
+
+        Api.stream(Api.cfg.fastModel, [{role:"system", content:sys}], {
+            onThink: () => {},
+            onFinish: (txt) => {
+                const clean = txt.replace(/<think>[\s\S]*?<\/think>/g,'').trim();
+                const hintMsg = `💡 提示：${clean}`;
+                UI.replacePlaceholder(id, hintMsg, 'ai');
+                this.state.history.push({role:"assistant", content:hintMsg});
+                this.saveHistory('active');
+            }
+        }, { thinking: true });
+    },
+
+    updateStats() {
+        const turnEl = document.getElementById('turnCounter');
+        const hintEl = document.getElementById('hintCounter');
+        
+        if(this.state.turnsMax === 0) {
+            turnEl.innerHTML = `<span class="iconify" data-icon="lucide:hourglass"></span> ∞ 轮`;
+        } else {
+            const left = this.state.turnsMax - this.state.turnsUsed;
+            turnEl.innerHTML = `<span class="iconify" data-icon="lucide:hourglass"></span> ${left} 轮`;
+            turnEl.style.color = left<=5 ? 'var(--c-no)' : 'var(--text-muted)';
+        }
+
+        const hBtn = document.getElementById('hintBtn');
+        if(this.state.hintsMax === 0) {
+            hintEl.innerHTML = `<span class="iconify" data-icon="lucide:lightbulb-off"></span> 0 提示`; 
+            hBtn.style.display = 'none';
+        } else if (this.state.hintsMax > 100) {
+            hintEl.innerHTML = `<span class="iconify" data-icon="lucide:lightbulb"></span> ∞ 提示`; 
+            hBtn.style.display = 'block';
+            hBtn.innerHTML = `<span class="iconify" data-icon="lucide:lightbulb"></span> 获取提示`;
+        } else {
+            const hLeft = this.state.hintsMax - this.state.hintsUsed;
+            hintEl.innerHTML = `<span class="iconify" data-icon="lucide:lightbulb"></span> ${hLeft} 提示`;
+            hBtn.style.display = 'block';
+            hBtn.innerHTML = `<span class="iconify" data-icon="lucide:lightbulb"></span> 提示 (${hLeft})`;
+            if(hLeft <= 0) hBtn.style.display = 'none';
+        }
+    },
+
+    finish(success, isReplay=false) {
+        if(success && !isReplay) Confetti.start();
+        
+        const wrap = document.getElementById('inputWrapper');
+        wrap.style.opacity = '0';
+        setTimeout(() => wrap.style.display = 'none', 300);
+        document.getElementById('gameContainer').classList.add('state-over');
+
+        let rank = 'F';
+        if(success) {
+            const base = 100;
+            const ded = this.state.turnsUsed * 2;
+            const s = Math.max(0, base - ded);
+            if(s>=90) rank='S'; else if(s>=80) rank='A'; else if(s>=60) rank='B'; else rank='C';
+        }
+
+        if(!isReplay || !document.querySelector('.inline-result')) {
+            const card = document.createElement('div');
+            card.className = 'inline-result';
+            card.innerHTML = `
+                <h2>${success?"🎉 任务完成":"💀 任务失败"}</h2>
+                <div class="score">${rank}</div>
+                <div style="font-size:0.9rem; color:#94a3b8">轮次: ${this.state.turnsUsed} | 提示: ${this.state.hintsUsed}</div>
+                <div class="truth-box"><strong>真相：</strong><br>${this.state.puzzle.answer}</div>
+                <button class="btn" onclick="Game.backToHome()"><span class="iconify" data-icon="lucide:home"></span> 返回主页</button>
+            `;
+            document.getElementById('chatList').appendChild(card);
+            setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+        }
+
+        if(!isReplay) {
+            this.state.status = 'completed'; 
+            this.saveHistory('completed', rank);
+        }
+    },
+
+    saveHistory(status, rank='-') {
+        const item = {
+            id: this.state.startTime,
+            title: this.state.puzzle ? this.state.puzzle.title : "未知",
+            tags: this.state.tags,
+            date: new Date().toLocaleString(),
+            status: status,
+            rank: rank,
+            state: this.state,
+            puzzle: this.state.puzzle, 
+            answer: this.state.puzzle ? this.state.puzzle.answer : ""
+        };
+        History.save(item);
+    },
+
+    quit() { if(confirm("确定放弃？真相将揭晓。")) this.finish(false); },
+    backToHome() {
+        if(this.state.status === 'active') this.saveHistory('active');
+        location.reload();
+    }
+};
+
+// ==================== History ====================
+const History = {
+    key: 'labyrinth_hist_v8', 
+    list: [],
+    init() {
+        const s = localStorage.getItem(this.key);
+        if(s) this.list = JSON.parse(s);
+        this.render();
+    },
+    save(item) {
+        this.list = this.list.filter(i => i.id !== item.id);
+        this.list.unshift(item);
+        localStorage.setItem(this.key, JSON.stringify(this.list));
+        this.render();
+    },
+    del(id, e) {
+        e.stopPropagation();
+        if(confirm("删除此记录？")) {
+            this.list = this.list.filter(i => i.id !== id);
+            localStorage.setItem(this.key, JSON.stringify(this.list));
+            this.render();
+        }
+    },
+    render() {
+        const el = document.getElementById('historyList');
+        const sec = document.getElementById('historySection');
+        el.innerHTML = '';
+        if(this.list.length === 0) { sec.style.display = 'none'; return; }
+        sec.style.display = 'flex';
+
+        this.list.forEach(item => {
+            const d = document.createElement('div');
+            d.className = 'history-item';
+            const isActive = item.status === 'active';
+            
+            let statusText = isActive ? '进行中' : (item.rank === 'F' ? '已投降' : `已通关 ${item.rank}`);
+            let statusClass = isActive ? 'tag-active' : (item.rank === 'F' ? 'tag-fail' : 'tag-done');
+            
+            const diffMap = { 'easy': '简单', 'normal': '常规', 'hard': '困难' };
+            const diffText = diffMap[item.state.diff] || '未知';
+
+            d.innerHTML = `
+                <div style="flex:1">
+                    <div style="font-weight:700; color:${isActive?'var(--primary)':'var(--text-main)'}; font-family:var(--font-serif);">${item.title}</div>
+                    <div style="font-size:0.75rem; margin-top:4px; color:#64748b; display:flex; gap:6px; align-items:center;">
+                        <span class="tag-diff">${diffText}</span>
+                        <span class="${statusClass}">${statusText}</span> 
+                        ${item.date.split(' ')[0]}
+                    </div>
+                </div>
+                <button class="btn" style="padding:4px 8px; color:var(--c-no); border:none; background:transparent;" onclick="History.del(${item.id}, event)">
+                    <span class="iconify" data-icon="lucide:trash-2"></span>
+                </button>
+            `;
+            d.onclick = () => Game.loadFromHistory(item);
+            el.appendChild(d);
+        });
+    }
+};
+
+// ==================== Start ====================
+window.onload = () => {
+    Api.init();
+    Bubble.init();
+    History.init();
+    Confetti.init(); 
+
+    const handleEnter = (e, isGuess) => {
+        if(e.key === 'Enter') {
+            if(!isGuess && !e.shiftKey) { e.preventDefault(); Game.send(); }
+            if(isGuess && e.ctrlKey) { e.preventDefault(); Game.send(); }
+        }
+    };
+    document.getElementById('inputAsk').addEventListener('keydown', e => handleEnter(e, false));
+    document.getElementById('inputGuess').addEventListener('keydown', e => handleEnter(e, true));
+};
+
+const Confetti = {
+    ctx: null, w:0, h:0, particles:[],
+    init() { 
+        const c = document.getElementById('confetti'); 
+        this.ctx = c.getContext('2d');
+        const resize = () => { this.w=c.width=window.innerWidth; this.h=c.height=window.innerHeight; };
+        window.onresize = resize; resize();
+    },
+    start() {
+        this.particles = [];
+        const cols = ['#38bdf8','#f59e0b','#4ade80','#f87171'];
+        for(let i=0; i<150; i++) {
+            this.particles.push({
+                x: this.w/2, y: this.h/2,
+                vx: (Math.random()-0.5)*25, vy: (Math.random()-0.5)*25,
+                c: cols[Math.floor(Math.random()*4)], s: Math.random()*6+3, l:1
+            });
+        }
+        this.loop();
+    },
+    loop() {
+        this.ctx.clearRect(0,0,this.w,this.h);
+        let active = false;
+        this.particles.forEach(p => {
+            if(p.l > 0) {
+                p.x+=p.vx; p.y+=p.vy; p.vy+=0.5; p.l-=0.02;
+                this.ctx.globalAlpha = p.l; this.ctx.fillStyle = p.c;
+                this.ctx.fillRect(p.x, p.y, p.s, p.s);
+                active = true;
+            }
+        });
+        if(active) requestAnimationFrame(() => this.loop());
+    }
+};
+</script>
+</body>
+</html>
