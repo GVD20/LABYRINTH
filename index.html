@@ -154,6 +154,28 @@
             font-weight: 900; letter-spacing: -2px;
             text-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
+
+        .puzzle-emoji {
+            position: absolute;
+            left: 0px;
+            top: 0px;
+            transform: translate(-50%, -50%);
+            width: 64.2px;
+            height: 64.2px;
+            border-radius: 25%;
+            background: rgba(56, 189, 248, 0.1);
+            border: 0px solid rgba(56, 189, 248, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
+                        transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 10;
+            /* 新增：确保 Emoji 严格居中 */
+            line-height: 1;
+            text-align: center;
+        }
         
         .difficulty-selector { display: flex; gap: 5px; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 12px; border: 1px solid var(--border); }
         .diff-btn { 
@@ -206,7 +228,7 @@
         #historySection { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-top: 1px solid var(--border); padding-top: 15px; display: none; }
         .history-list { flex: 1; overflow-y: auto; padding-right: 5px; }
         .history-item {
-            padding: 12px; border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            padding: 10px; border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
             font-size: 0.9rem; margin-bottom: 8px; transition: all 0.2s;
             border: 1px solid transparent;
         }
@@ -245,7 +267,21 @@
         .game-container.state-over .input-wrapper { display: none !important; opacity: 0; pointer-events: none; }
         .game-container.state-over .chat-area { flex: 1; margin-bottom: 0; }
 
-        .puzzle-title-row { display: flex; justify-content: space-between; align-items: flex-start; }
+        .puzzle-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            position: relative;
+            /* 移除固定的 padding-left，改为动态添加 */
+            transition: padding-left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 新增：当存在 Emoji 时才添加左边距 */
+        .puzzle-title-row.has-emoji {
+            /* 修改：60px (emoji宽度) + 10px (间距) = 70px */
+            padding-left: 80px;
+        }
+
         .puzzle-title { 
             font-family: var(--font-serif);
             font-size: 1.6rem; font-weight: 700; margin: 0; color: var(--text-main); line-height: 1.3; 
@@ -253,7 +289,10 @@
         }
         .puzzle-title.switching { opacity: 0; transform: translateY(-10px); }
 
-        .puzzle-meta { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+        .puzzle-meta { 
+            display: flex; gap: 10px; align-items: center; margin-top: 8px;
+            /* 移除 transition，改为在需要时动态控制 */
+        }
         
         .puzzle-tags { font-family: var(--font-ui); font-size: 0.8rem; color: var(--text-muted); display:flex; align-items:center; gap:8px;}
         .diff-badge { background: rgba(255,255,255,0.08); color: var(--text-main); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid var(--border); }
@@ -265,6 +304,23 @@
             background: rgba(0,0,0,0.25); padding: 6px 14px; border-radius: 8px; 
             border: 1px solid var(--border); white-space: nowrap; display: flex; align-items: center; gap: 8px;
             min-width: 80px; justify-content: center;
+        }
+
+        .history-emoji {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: rgba(178, 178, 178, 0.08);
+            border: 1.5px solid rgba(178, 178, 178, 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            flex-shrink: 0;
+            /* 新增：确保历史记录中的 Emoji 也严格居中 */
+            line-height: 1;
+            text-align: center;
+            margin-right: 10px; /* 历史记录中与文字的间距 */
         }
 
         /* 思考条 */
@@ -1581,12 +1637,10 @@ const Game = {
         this.state.startTime = Date.now();
         this.state.draftAsk = ""; this.state.draftGuess = "";
         this.state.status = 'generating';
-        this.state.titleFound = false; // Reset
+        this.state.titleFound = false;
 
-        // 1. 设置难度
         this.setDiff(this.state.diff, document.querySelector('.diff-btn.active'));
 
-        // 2. 切换页面并初始化 UI
         UI.switchPage('page-game');
         
         const container = document.getElementById('gameContainer');
@@ -1600,29 +1654,75 @@ const Game = {
         document.getElementById('chatList').innerHTML = '';
         document.getElementById('gamePuzzle').style.display = 'none';
         
-        // 3. 关键修复：在页面显示后立即更新状态栏，覆盖默认的 ∞
+        // 重置 Emoji 容器和左边距
+        const titleRow = document.querySelector('.puzzle-title-row');
+        titleRow.classList.remove('has-emoji');
+        const existingEmoji = document.getElementById('puzzleEmoji');
+        if (existingEmoji) existingEmoji.remove();
+        
         this.updateStats();
-
-        // 4. 重置输入框
         this.setMode('ask');
-        
-        // 5. 初始化平滑滚动文本组件
         UI.SmoothText.init();
-        
-        // ✨ 新增：启动提示轮播
         this.TipsCarousel.start();
         
         this.generate();
     },
 
+    createEmojiContainer(emoji) {
+        const titleEl = document.getElementById('gameTitle');
+        const titleRow = titleEl.closest('.puzzle-title-row');
+        
+        const existing = document.getElementById('puzzleEmoji');
+        if (existing) {
+            existing.innerText = emoji;
+            existing.style.opacity = '1';
+            existing.style.transform = 'scale(1)';
+            titleRow.classList.add('has-emoji');
+            return;
+        }
+        
+        const container = document.createElement('div');
+        container.id = 'puzzleEmoji';
+        container.className = 'puzzle-emoji';
+        container.innerText = emoji;
+        container.style.opacity = '1';
+        container.style.transform = 'scale(1)';
+        
+        titleEl.parentNode.insertBefore(container, titleEl);
+        
+        // 添加 has-emoji 类触发左边距
+        titleRow.classList.add('has-emoji');
+    },
+
     loadFromHistory(item) {
+        const emoji = item.puzzle?.emoji || item.state?.puzzle?.emoji || '🎭';
+        
         if(item.status === 'completed' || item.rank !== '-' || item.rank === 'F') {
             UI.switchPage('page-game');
             const container = document.getElementById('gameContainer');
             container.className = 'game-container state-active state-over';
             
-            document.getElementById('gameTitle').innerText = item.title;
-            document.getElementById('gameTags').innerText = item.tags.join(' / ') + ' [已归档]';
+            const titleEl = document.getElementById('gameTitle');
+            const titleRow = titleEl.closest('.puzzle-title-row');
+            const tagsEl = document.getElementById('gameTags');
+            
+            // 禁用过渡效果
+            titleRow.style.transition = 'none';
+            titleEl.style.transition = 'none';
+            tagsEl.style.transition = 'none';
+            
+            titleEl.innerText = item.title;
+            tagsEl.innerHTML = item.tags.join(' / ') + ' [已归档]';
+            
+            // 创建 Emoji
+            this.createEmojiContainer(emoji);
+            
+            // 强制重绘后恢复过渡效果
+            titleRow.offsetHeight; // 触发 reflow
+            titleRow.style.transition = '';
+            titleEl.style.transition = '';
+            tagsEl.style.transition = '';
+            
             document.getElementById('gamePuzzle').style.display = 'block';
             document.getElementById('gamePuzzle').innerText = item.puzzle.puzzle || item.puzzle;
             
@@ -1639,11 +1739,17 @@ const Game = {
                 }
             });
             
+            let rankColor = 'var(--c-no)';
+            if(item.rank === 'S') rankColor = '#fbbf24';
+            else if(item.rank === 'A') rankColor = '#a78bfa';
+            else if(item.rank === 'B') rankColor = 'var(--primary)';
+            else if(item.rank === 'C') rankColor = 'var(--c-yes)';
+            
             const card = document.createElement('div');
             card.className = 'inline-result';
             card.innerHTML = `
                 <h2>${item.rank!=='F'?"🎉 任务完成":"💀 任务失败"}</h2>
-                <div class="score">${item.rank}</div>
+                <div class="score" style="color:${rankColor}">${item.rank}</div>
                 <div style="font-size:0.9rem; color:#94a3b8">轮次: ${item.state.turnsUsed} | 提示: ${item.state.hintsUsed}</div>
                 <div class="truth-box"><strong>真相：</strong><br>${item.puzzle.answer || item.answer}</div>
                 <button class="btn" onclick="Game.backToHome()"><span class="iconify" data-icon="lucide:home"></span> 返回主页</button>
@@ -1663,8 +1769,27 @@ const Game = {
         wrap.style.display = 'flex';
         wrap.style.opacity = '1';
         
-        document.getElementById('gameTitle').innerText = this.state.puzzle.title;
-        document.getElementById('gameTags').innerHTML = this.state.tags.join(' / ') + ` <span class="diff-badge">${this.state.diff}</span>`;
+        const titleEl = document.getElementById('gameTitle');
+        const titleRow = titleEl.closest('.puzzle-title-row');
+        const tagsEl = document.getElementById('gameTags');
+        
+        // 禁用过渡效果
+        titleRow.style.transition = 'none';
+        titleEl.style.transition = 'none';
+        tagsEl.style.transition = 'none';
+        
+        titleEl.innerText = this.state.puzzle.title;
+        tagsEl.innerHTML = this.state.tags.join(' / ') + ` <span class="diff-badge">${this.state.diff}</span>`;
+        
+        // 创建 Emoji
+        this.createEmojiContainer(emoji);
+        
+        // 强制重绘后恢复过渡效果
+        titleRow.offsetHeight; // 触发 reflow
+        titleRow.style.transition = '';
+        titleEl.style.transition = '';
+        tagsEl.style.transition = '';
+        
         document.getElementById('gamePuzzle').style.display = 'block';
         document.getElementById('gamePuzzle').innerText = this.state.puzzle.puzzle;
         
@@ -1704,59 +1829,59 @@ const Game = {
         编写要求：
             1. 谜题要基于物理或心理逻辑，适合通过问答和推理在有限轮次内解开。谜面不应太复杂，以免信息过多影响判断。谜底的复杂程度视难度调整。
             2. 核心诡计应当在谜面中隐含线索，避免无厘头的谜底逻辑、过度依赖巧合或谜面与谜底脱节。
-            3. 谜面应构建一个不寻常、引人入胜的场景，激发用户的好奇心和探索真相的欲望；谜面应当引出对真相的提问（以“发生了什么”或“为什么？”等结尾）
+            3. 谜面应构建一个不寻常、引人入胜的场景，激发用户的好奇心和探索真相的欲望；谜面应当引出对真相的提问（以"发生了什么"或"为什么？"等结尾）
             4. 谜底应包含适当的反转或意外元素，但必须在逻辑上与整个谜题自洽且可被推理揭示。
-            5. 难度设置：当前难度为“${this.state.diff}”。${diffPrompt}
+            5. 难度设置：当前难度为"${this.state.diff}"。${diffPrompt}
         格式要求：
-            1. 必须提取出 ${kpCount} 个“谜底要点”（Key Points），这些要点用于匹配用户猜谜结果，量化其准确性和完整性。每个要点应为一句简短描述，涵盖谜底的关键方面，不应包含任何谜面已知的信息。
-            2. 最终输出严格JSON：{"title":"中文标题","puzzle":"简短谜面","answer":"完整真相", "key_points":["要点1","要点2"...]}。`;
+            1. 必须提取出 ${kpCount} 个"谜底要点"（Key Points），这些要点用于匹配用户猜谜结果，量化其准确性和完整性。每个要点应为一句简短描述，涵盖谜底的关键方面，不应包含任何谜面已知的信息。
+            2. 选择一个最符合谜题氛围和核心主题的 Emoji 表情符号。
+            3. 最终输出严格JSON：{"emoji":"(符合当前谜题主题的Emoji)","title":"中文标题","puzzle":"简短谜面","answer":"完整真相", "key_points":["要点1","要点2"...]}。`;
 
-        UI.setThinkingState('thinking'); // 初始状态：思考中 (Index 0)
+        UI.setThinkingState('thinking');
 
         Api.stream(Api.cfg.storyModel, [{role:"user", content:prompt}], {
             onStart: () => {
                 UI.setThinkingState('generating');
-                // 注意：不再默认切换到 Index 1
             },
             onContent: (chunk, fullText) => {
-                // 1. 将所有内容（包括 think 和 JSON）送入平滑滚动器
                 UI.SmoothText.push(chunk);
 
-                // 2. 实时流检测，请求切换标签（带排队机制）
-                // 仅当检测到 title 关键字时，才切换到生成标题
                 if(fullText.includes('"title":')) UI.PhaseMgr.request(1); 
                 if(fullText.includes('"puzzle":')) UI.PhaseMgr.request(2); 
                 if(fullText.includes('"answer":')) UI.PhaseMgr.request(3); 
-                if(fullText.includes('"key_points":')) UI.PhaseMgr.request(4); 
+                if(fullText.includes('"key_points":')) UI.PhaseMgr.request(4);
 
-                // 3. 实时提取标题并替换
+                // 实时提取 Emoji 和标题
                 if (!this.state.titleFound) {
-                    const match = fullText.match(/"title"\s*:\s*"(.*?)"/);
-                    if (match && match[1]) {
+                    const emojiMatch = fullText.match(/"emoji"\s*:\s*"(.+?)"/);
+                    const titleMatch = fullText.match(/"title"\s*:\s*"(.*?)"/);
+                    
+                    if (titleMatch && titleMatch[1]) {
                         this.state.titleFound = true;
-                        UI.updateTitleSmooth(match[1]);
+                        const emoji = emojiMatch ? emojiMatch[1] : '🎭';
+                        this.updateTitleWithEmoji(titleMatch[1], emoji);
                     }
                 }
             },
             onFinish: (txt) => {
-                // BUG FIX: 强制请求最后的状态，确保动画队列完整
-                // 即使 API 结束了，也要让 UI 跑完 "生成谜底" -> "即将揭晓"
                 UI.PhaseMgr.request(3);
                 UI.PhaseMgr.request(4);
 
-                // 在数据接收完毕后，调用 waitAndFinish 等待动画播放完毕
-                // 然后再执行最终的 UI 切换
                 UI.PhaseMgr.waitAndFinish(() => {
                     UI.setThinkingState(null);
-                    // ✨ 停止提示轮播
                     this.TipsCarousel.stop();
                     try {
                         const clean = txt.replace(/```json/g,'').replace(/```/g,'').replace(/<think>[\s\S]*?<\/think>/g,'');
                         const data = JSON.parse(clean);
+                        
+                        // 设置默认 Emoji
+                        if (!data.emoji) data.emoji = '🎭';
+                        
                         this.state.puzzle = data;
                         
-                        document.getElementById('gameTitle').innerText = data.title; // 最终确保一致
-                        document.getElementById('gameTags').innerHTML = this.state.tags.join(' / ') + ` <span class="diff-badge">${this.state.diff}</span>`;
+                        // 最终确保一致
+                        this.updateTitleWithEmoji(data.title, data.emoji, true);
+                        
                         document.getElementById('gamePuzzle').innerText = data.puzzle;
                         document.getElementById('gamePuzzle').style.display = 'block';
                         
@@ -1771,11 +1896,58 @@ const Game = {
                     } catch(e) {
                         console.error(e);
                         alert("生成格式错误，请检查 API 配置或重试");
+                        this.TipsCarousel.stop();
                         this.backToHome();
                     }
                 });
             }
         }, { thinking: true });
+    },
+
+    updateTitleWithEmoji(title, emoji, instant = false) {
+        const titleEl = document.getElementById('gameTitle');
+        const tagsEl = document.getElementById('gameTags');
+        const titleRow = titleEl.closest('.puzzle-title-row'); // 获取父容器
+        let emojiContainer = document.getElementById('puzzleEmoji');
+        
+        if (!emojiContainer) {
+            // 首次创建 Emoji 容器
+            const container = document.createElement('div');
+            container.id = 'puzzleEmoji';
+            container.className = 'puzzle-emoji';
+            container.innerText = emoji;
+            container.style.opacity = '0';
+            container.style.transform = 'scale(0)';
+            
+            titleEl.parentNode.insertBefore(container, titleEl);
+            emojiContainer = container;
+        }
+        
+        if (instant) {
+            // 最终确认时直接显示
+            titleEl.innerText = title;
+            emojiContainer.innerText = emoji;
+            emojiContainer.style.opacity = '1';
+            emojiContainer.style.transform = 'scale(1)';
+            titleRow.classList.add('has-emoji'); // 添加类触发左边距
+        } else {
+            // 动画展示
+            titleEl.classList.add('switching');
+            setTimeout(() => {
+                titleEl.innerText = title;
+                titleEl.classList.remove('switching');
+                
+                // 同时添加 has-emoji 类，触发左边距过渡
+                titleRow.classList.add('has-emoji');
+                
+                // Emoji 淡入动画
+                emojiContainer.innerText = emoji;
+                setTimeout(() => {
+                    emojiContainer.style.opacity = '1';
+                    emojiContainer.style.transform = 'scale(1)';
+                }, 100);
+            }, 300);
+        }
     },
 
     mode: 'ask',
@@ -2116,8 +2288,12 @@ const History = {
             
             const diffMap = { 'easy': '简单', 'normal': '常规', 'hard': '困难' };
             const diffText = diffMap[item.state.diff] || '未知';
+            
+            // 获取 Emoji，提供默认值
+            const emoji = item.puzzle?.emoji || item.state?.puzzle?.emoji || '🎭';
 
             d.innerHTML = `
+                <div class="history-emoji">${emoji}</div>
                 <div style="flex:1">
                     <div style="font-weight:700; color:${isActive?'var(--primary)':'var(--text-main)'}; font-family:var(--font-serif);">${item.title}</div>
                     <div style="font-size:0.75rem; margin-top:4px; color:#64748b; display:flex; gap:6px; align-items:center;">
