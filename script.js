@@ -582,7 +582,7 @@ const UI = {
 
             const retryBtn = document.createElement('button');
             retryBtn.className = 'retry-btn';
-            retryBtn.setAttribute('onclick', 'Game.retry()');
+            retryBtn.setAttribute('onclick', 'Game.retry(this)');
 
             const retryIcon = document.createElement('span');
             retryIcon.className = 'iconify';
@@ -770,7 +770,8 @@ const Game = {
         canSettle: false,          // 是否可以结算
         highestScore: 0,           // 历史最高单次得分
         lastInput: "",             // 记录最后一次输入用于重试
-        lastMode: ""               // 记录最后一次模式用于重试
+        lastMode: "",              // 记录最后一次模式用于重试
+        isProcessing: false        // 标记是否正在处理请求，防止重复提交
     },
 
     setDiff(d, el) {
@@ -1374,11 +1375,13 @@ const Game = {
     },
 
     send() {
+        if(this.state.isProcessing) return;
         const input = this.mode === 'ask' ? document.getElementById('inputAsk') : document.getElementById('inputGuess');
         const val = input.value.trim();
         if(!val) return;
         if(this.state.turnsMax > 0 && this.state.turnsUsed >= this.state.turnsMax) return;
 
+        this.state.isProcessing = true;
         input.value = '';
         
         // 记录最后一次输入和模式，用于重试
@@ -1399,14 +1402,23 @@ const Game = {
         }
     },
 
-    retry() {
-        if(!this.state.lastInput) return;
+    retry(btn = null) {
+        if(!this.state.lastInput || this.state.isProcessing) return;
         
         // 仅在最后一条消息为错误消息时才允许重试，并移除该错误消息
         const lastMsg = document.querySelector('#chatList .msg:last-child');
         if(!lastMsg || !lastMsg.classList.contains('msg-system-error')) {
             return;
         }
+        
+        this.state.isProcessing = true;
+        
+        // 禁用按钮并显示加载状态
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="iconify" data-icon="lucide:loader-2" style="animation: spin 1s linear infinite"></span> 重试中...`;
+        }
+
         lastMsg.remove();
 
         const val = this.state.lastInput;
@@ -1422,6 +1434,7 @@ const Game = {
         
         Api.stream(Api.cfg.fastModel, [{role:"system", content:sys}], {
             onFinish: (txt) => {
+                this.state.isProcessing = false;
                 try {
                     const j = JSON.parse(txt.replace(/```json|```/g,''));
                     UI.replacePlaceholder(id, j.res, 'ai');
@@ -1432,6 +1445,7 @@ const Game = {
                 }
             },
             onError: (err) => {
+                this.state.isProcessing = false;
                 UI.replacePlaceholder(id, `系统错误 (${err.message})`, 'system-error', true);
             }
         }, { thinking: true }); 
@@ -1460,6 +1474,7 @@ const Game = {
         Api.stream(Api.cfg.fastModel, [{role:"system", content:sys}], {
             onThink: () => {}, 
             onFinish: (txt) => {
+                this.state.isProcessing = false;
                 try {
                     const clean = txt.replace(/```json/g,'').replace(/```/g,'').replace(/<think>[\s\S]*?<\/think>/g,'');
                     const res = JSON.parse(clean);
@@ -1541,6 +1556,7 @@ const Game = {
                 }
             },
             onError: (err) => {
+                this.state.isProcessing = false;
                 UI.replacePlaceholder(id, `系统错误 (${err.message})`, 'system-error', true);
             }
         }, { thinking: true });
@@ -1731,7 +1747,10 @@ const Game = {
     },
 
     getHint() {
+        if(this.state.isProcessing) return;
         if(this.state.hintsMax > 0 && this.state.hintsUsed >= this.state.hintsMax) return;
+        
+        this.state.isProcessing = true;
         this.state.hintsUsed++;
         this.updateStats();
 
@@ -1779,11 +1798,16 @@ ${pastHints.length > 0 ? pastHints.join('\n') : '（暂无）'}
         Api.stream(Api.cfg.fastModel, [{role:"system", content:sys}], {
             onThink: () => {},
             onFinish: (txt) => {
+                this.state.isProcessing = false;
                 const clean = txt.replace(/<think>[\s\S]*?<\/think>/g,'').trim();
                 const hintMsg = `💡 提示：${clean}`;
                 UI.replacePlaceholder(hintId, hintMsg, 'ai');
                 this.state.history.push({role:"assistant", content:hintMsg});
                 this.saveHistory('active');
+            },
+            onError: (err) => {
+                this.state.isProcessing = false;
+                UI.replacePlaceholder(hintId, `获取提示失败 (${err.message})`, 'system-error', true);
             }
         }, { thinking: true });
     },
