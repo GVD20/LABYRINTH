@@ -566,7 +566,7 @@ const UI = {
                         <span class="iconify" data-icon="lucide:alert-circle"></span>
                         <span>${content}</span>
                     </div>
-                    <button class="retry-btn" onclick="Game.retry()">
+                    <button class="retry-btn" onclick="Game.retry()" aria-label="重试请求">
                         <span class="iconify" data-icon="lucide:refresh-cw"></span> 重试
                     </button>
                 </div>
