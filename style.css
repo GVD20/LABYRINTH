@@ -475,6 +475,11 @@ body {
     transform: translateY(-1px);
 }
 
+.retry-btn:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
 .retry-btn:active {
     transform: translateY(0);
 }
