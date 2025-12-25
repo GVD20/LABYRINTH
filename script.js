@@ -774,6 +774,19 @@ const Game = {
         isProcessing: false        // 标记是否正在处理请求，防止重复提交
     },
 
+    // 默认页面标题
+    defaultTitle: 'Labyrinth | 逻辑迷宫 | AI海龟汤',
+
+    // 更新页面标题
+    updatePageTitle(puzzleTitle = null) {
+        if (puzzleTitle) {
+            document.title = `${puzzleTitle} - Labyrinth`;
+        } else {
+            document.title = this.defaultTitle;
+        }
+    },
+
+
     setDiff(d, el) {
         this.state.diff = d;
         document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
@@ -917,6 +930,9 @@ const Game = {
         this.setDiff(this.state.diff, document.querySelector('.diff-btn.active'));
 
         UI.switchPage('page-game');
+
+        // 更新页面标题为"生成中"状态
+        this.updatePageTitle('正在构建迷宫...');
         
         const container = document.getElementById('gameContainer');
         container.className = 'game-container state-init';
@@ -1063,6 +1079,9 @@ const Game = {
     // 修改 loadFromHistory 方法，在恢复后打印调试信息
     loadFromHistory(item) {
         const emoji = item.puzzle?.emoji || item.state?.puzzle?.emoji || '🎭';
+
+        // 更新页面标题
+        this.updatePageTitle(item.title);
         
         if(item.status === 'completed' || item.rank !== '-' || item.rank === 'F') {
             UI.switchPage('page-game');
@@ -1257,6 +1276,7 @@ const Game = {
                         this.state.titleFound = true;
                         const emoji = emojiMatch ? emojiMatch[1] : '🎭';
                         this.updateTitleWithEmoji(titleMatch[1], emoji);
+                        this.updatePageTitle(titleMatch[1]);
                     }
                 }
             },
