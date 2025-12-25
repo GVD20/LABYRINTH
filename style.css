@@ -432,6 +432,58 @@ body {
 .ai-amb { border-color: var(--c-amb); background: rgba(167, 139, 250, 0.08); color: #ede9fe; }
 .ai-hint { border-color: var(--c-hint); background: rgba(250, 204, 21, 0.08); color: #fef9c3; box-shadow: 0 0 20px rgba(250, 204, 21, 0.05); }
 
+.msg-system-error { align-self: center; width: 100%; max-width: 600px; padding: 0; background: transparent; border: none; }
+
+.error-card {
+    margin: 12px 0;
+    padding: 12px 16px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #ef4444;
+    animation: fadeIn 0.3s ease;
+}
+
+.error-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.retry-btn {
+    background: var(--primary);
+    color: #0f172a;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    font-weight: 600;
+}
+
+.retry-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.retry-btn:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
+.retry-btn:active {
+    transform: translateY(0);
+}
+
 .msg-sys { align-self: center; font-size: 0.85rem; color: var(--text-muted); background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 20px; margin: 5px 0; border: 1px solid var(--border); display: flex; align-items: center; gap: 6px;}
 
 .placeholder-msg { align-self: flex-start; display: flex; align-items: center; gap: 10px; padding: 12px 20px; background: rgba(255,255,255,0.02); border-radius: 12px; color: var(--text-muted); font-size: 0.9rem; animation: pulse 1.5s infinite; border: 1px dashed var(--border); }
@@ -765,3 +817,11 @@ body {
 @keyframes slideDown { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes popIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 @keyframes bubblePop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.retry-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    filter: grayscale(0.5);
+}
