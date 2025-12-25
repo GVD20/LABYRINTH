@@ -786,7 +786,6 @@ const Game = {
         }
     },
 
-
     setDiff(d, el) {
         this.state.diff = d;
         document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
@@ -1941,6 +1940,8 @@ ${pastHints.length > 0 ? pastHints.join('\n') : '（暂无）'}
     quit() { if(confirm("确定放弃？真相将揭晓。")) this.finish(false); },
     backToHome() {
         if(this.state.status === 'active') this.saveHistory('active');
+        this.updatePageTitle(null);
+
         location.reload();
     }
 };
