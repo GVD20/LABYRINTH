@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.cn/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Serif+SC:wght@300;500;700;900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/@iconify/iconify@3.1.1/dist/iconify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" type="image/png" href="assets/favicon/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="assets/favicon/favicon.svg" />
@@ -23,93 +24,37 @@
     <canvas id="confetti"></canvas>
 
     <div class="modal-overlay" id="apiModal">
+        <!-- ... existing apiModal content ... -->
+    </div>
+
+    <div class="modal-overlay" id="roomModal">
         <div class="modal-card glass-panel">
             <div class="modal-header">
                 <div class="modal-title">
-                    <span class="iconify" data-icon="lucide:settings" style="color:var(--primary)"></span>
-                    API 配置
+                    <span class="iconify" data-icon="lucide:plus-circle" style="color:var(--primary)"></span>
+                    创建房间
                 </div>
-                <button id="apiCloseBtn" class="btn" onclick="Api.close()" style="width: 36px; height: 36px; padding:0; border-radius:50%;">
+                <button class="btn" onclick="Multiplayer.closeCreateModal()" style="width: 36px; height: 36px; padding:0; border-radius:50%;">
                     <span class="iconify" data-icon="lucide:x"></span>
                 </button>
             </div>
             
-            <div id="modelPicker" class="model-picker-overlay">
-                <div style="display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px;">
-                    <button class="btn" onclick="Api.closePicker()" style="padding:6px;"><span class="iconify" data-icon="lucide:arrow-left"></span></button>
-                    <input type="text" id="modelSearch" class="api-input" placeholder="搜索模型..." oninput="Api.filterModels(this.value)">
-                </div>
-                <div id="modelList" class="model-list"></div>
-            </div>
-
             <div class="api-group">
-                <label class="api-label">Base URL</label>
-                <div class="input-with-btn">
-                    <input type="text" id="apiBase" class="api-input" placeholder="e.g. https://api.deepseek.com/v1">
-                    <button class="btn scan-success" onclick="Api.fetchModels()" title="扫描模型" style="padding:0 12px; gap:6px;">
-                        <span class="iconify" data-icon="lucide:refresh-cw"></span> 扫描模型
-                    </button>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div class="preset-chips">
-                        <div class="chip" onclick="Api.setBaseUrl('https://api.openai.com/v1')">OpenAI</div>
-                        <div class="chip" onclick="Api.setBaseUrl('https://dashscope.aliyuncs.com/compatible-mode/v1')">阿里云百炼</div>
-                        <div class="chip" onclick="Api.setBaseUrl('https://api.deepseek.com/v1')">DeepSeek</div>
-                        <div class="chip" onclick="Api.setBaseUrl('http://localhost:1234/v1')">LM Studio</div>
-                    </div>
-                    <div id="scanStatus" style="font-size:0.75rem; color:var(--c-yes); transition:opacity 0.5s; opacity:0;"></div>
-                </div>
+                <label class="api-label">房间名称</label>
+                <input type="text" id="roomNameInput" class="api-input" placeholder="给你的房间起个名字">
             </div>
             
             <div class="api-group">
-                <label class="api-label">API Key</label>
-                <input type="password" id="apiKey" class="api-input" placeholder="sk-...">
+                <label class="api-label">房间密码 (可选)</label>
+                <input type="password" id="roomPassInput" class="api-input" placeholder="留空则公开">
             </div>
 
-            <div class="model-row">
-                <div class="api-group">
-                    <label class="api-label">故事模型 (Reasoning)</label>
-                    <div class="input-with-btn">
-                        <input type="text" id="modelStory" class="api-input" placeholder="e.g. deepseek-r1" oninput="Api.handleInput('story', this.value)" onfocus="Api.handleInput('story', this.value)">
-                        <div id="dd-story" class="model-dropdown"></div>
-                        <button class="btn" onclick="Api.openPicker('story')" style="padding:0 10px;"><span class="iconify" data-icon="lucide:list"></span></button>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="display:flex; gap:6px;">
-                            <button class="btn" onclick="Api.test('story')" style="font-size:0.75rem; padding:4px 8px;">
-                                <span class="iconify" data-icon="lucide:play"></span> 测试
-                            </button>
-                            <button class="btn" onclick="Api.testThinking('story')" style="font-size:0.75rem; padding:4px 8px; color:var(--guess); border-color:rgba(245,158,11,0.3);">
-                                <span class="iconify" data-icon="lucide:brain"></span> 测试思考
-                            </button>
-                        </div>
-                        <div id="testStory" style="font-size:0.75rem;"></div>
-                    </div>
-                </div>
-
-                <div class="api-group">
-                    <label class="api-label">裁判模型 (Chat)</label>
-                    <div class="input-with-btn">
-                        <input type="text" id="modelFast" class="api-input" placeholder="e.g. qwen2.5-30b-a3b" oninput="Api.handleInput('fast', this.value)" onfocus="Api.handleInput('fast', this.value)">
-                        <div id="dd-fast" class="model-dropdown"></div>
-                        <button class="btn" onclick="Api.openPicker('fast')" style="padding:0 10px;"><span class="iconify" data-icon="lucide:list"></span></button>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="display:flex; gap:6px;">
-                            <button class="btn" onclick="Api.test('fast')" style="font-size:0.75rem; padding:4px 8px;">
-                                <span class="iconify" data-icon="lucide:play"></span> 测试
-                            </button>
-                            <button class="btn" onclick="Api.testThinking('fast')" style="font-size:0.75rem; padding:4px 8px; color:var(--guess); border-color:rgba(245,158,11,0.3);">
-                                <span class="iconify" data-icon="lucide:brain"></span> 测试思考
-                            </button>
-                        </div>
-                        <div id="testFast" style="font-size:0.75rem;"></div>
-                    </div>
-                </div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px;">
+                <span class="iconify" data-icon="lucide:info"></span> 房间将使用你当前的 API 配置作为默认设置。
             </div>
             
-            <button class="btn primary" onclick="Api.save()" style="width:100%; padding:12px; margin-top:5px;">
-                <span class="iconify" data-icon="lucide:save"></span> 保存配置
+            <button class="btn primary" onclick="Multiplayer.confirmCreateRoom()" style="width:100%; padding:12px;">
+                <span class="iconify" data-icon="lucide:check"></span> 确认创建
             </button>
         </div>
     </div>
@@ -122,44 +67,74 @@
                     <h1 class="game-title">LABYRINTH</h1>
                     <div style="font-size:0.9rem; color:var(--text-muted); margin-top:5px; font-family:var(--font-serif); font-style:italic;">探索逻辑的迷宫，还原故事的真相。</div>
                 </div>
-                
-                <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:16px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div class="difficulty-selector">
-                            <div class="diff-btn active" onclick="Game.setDiff('easy', this)">简单</div>
-                            <div class="diff-btn" onclick="Game.setDiff('normal', this)">常规</div>
-                            <div class="diff-btn" onclick="Game.setDiff('hard', this)">困难</div>
-                        </div>
-                        <div style="display:flex; gap:8px;">
-                            <a href="https://github.com/GVD20/LABYRINTH" target="_blank" rel="noopener noreferrer" class="btn" title="项目仓库" style="text-decoration:none;">
-                                <span class="iconify" data-icon="lucide:github"></span>
-                            </a>
-                            <button class="btn" onclick="Api.open()" title="API设置">
-                                <span class="iconify" data-icon="lucide:settings-2"></span>
-                            </button>
-                        </div>
-                    </div>
-                    <div id="diffDesc" style="font-size:0.85rem; color:#94a3b8; margin-top:10px; padding:0 4px; font-family:var(--font-ui); line-height:1.5;">逻辑直观，线索明显。<br>无限次提问与提示机会。</div>
-                </div>
 
-                <div id="tagTip" style="color:var(--primary); font-size:0.9rem; min-height:1.2em; display:flex; align-items:center; gap:6px;">
-                    <span class="iconify" data-icon="lucide:mouse-pointer-2"></span> 请选择 1-4 个关键词
-                </div>
-                
-                <div style="display:flex; gap:12px;">
-                    <button class="btn" onclick="Bubble.refresh()">
-                        <span class="iconify" data-icon="lucide:refresh-cw"></span> 换一批
+                <div class="mode-selector" style="display:flex; gap:10px; margin-bottom:15px;">
+                    <button id="btnSingle" class="btn primary" style="flex:1" onclick="App.showSinglePlayer()">
+                        <span class="iconify" data-icon="lucide:user"></span> 单人模式
                     </button>
-                    <button class="btn primary" onclick="Game.initNew()" style="flex:1">
-                        <span class="iconify" data-icon="lucide:play"></span> 开始推理
+                    <button id="btnMulti" class="btn" style="flex:1" onclick="Multiplayer.showLobby()">
+                        <span class="iconify" data-icon="lucide:users"></span> 多人联机
                     </button>
                 </div>
-
-                <div id="historySection">
-                    <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; gap:6px;">
-                        <span class="iconify" data-icon="lucide:history"></span> 历史记录
+                
+                <div id="singlePlayerMenu">
+                    <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div class="difficulty-selector">
+                                <div class="diff-btn active" onclick="Game.setDiff('easy', this)">简单</div>
+                                <div class="diff-btn" onclick="Game.setDiff('normal', this)">常规</div>
+                                <div class="diff-btn" onclick="Game.setDiff('hard', this)">困难</div>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <a href="https://github.com/GVD20/LABYRINTH" target="_blank" rel="noopener noreferrer" class="btn" title="项目仓库" style="text-decoration:none;">
+                                    <span class="iconify" data-icon="lucide:github"></span>
+                                </a>
+                                <button class="btn" onclick="Api.open()" title="API设置">
+                                    <span class="iconify" data-icon="lucide:settings-2"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="diffDesc" style="font-size:0.85rem; color:#94a3b8; margin-top:10px; padding:0 4px; font-family:var(--font-ui); line-height:1.5;">逻辑直观，线索明显。<br>无限次提问与提示机会。</div>
                     </div>
-                    <div id="historyList" class="history-list"></div>
+
+                    <div id="tagTip" style="color:var(--primary); font-size:0.9rem; min-height:1.2em; display:flex; align-items:center; gap:6px; margin-top:15px;">
+                        <span class="iconify" data-icon="lucide:mouse-pointer-2"></span> 请选择 1-4 个关键词
+                    </div>
+                    
+                    <div style="display:flex; gap:12px; margin-top:10px;">
+                        <button class="btn" onclick="Bubble.refresh()">
+                            <span class="iconify" data-icon="lucide:refresh-cw"></span> 换一批
+                        </button>
+                        <button class="btn primary" onclick="Game.initNew()" style="flex:1">
+                            <span class="iconify" data-icon="lucide:play"></span> 开始推理
+                        </button>
+                    </div>
+
+                    <div id="historySection" style="margin-top:20px;">
+                        <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; gap:6px;">
+                            <span class="iconify" data-icon="lucide:history"></span> 历史记录
+                        </div>
+                        <div id="historyList" class="history-list"></div>
+                    </div>
+                </div>
+
+                <div id="multiplayerLobby" style="display:none;">
+                    <div style="background:rgba(0,0,0,0.2); padding:15px; border-radius:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <div style="font-size:0.9rem; font-weight:700; color:var(--primary);">房间列表</div>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn" onclick="Multiplayer.refreshRooms()" title="刷新">
+                                    <span class="iconify" data-icon="lucide:refresh-cw"></span>
+                                </button>
+                                <button class="btn primary" onclick="Multiplayer.openCreateModal()">
+                                    <span class="iconify" data-icon="lucide:plus"></span> 创建房间
+                                </button>
+                            </div>
+                        </div>
+                        <div id="roomList" class="history-list" style="max-height:300px; overflow-y:auto;">
+                            <div style="text-align:center; color:var(--text-muted); padding:20px;">正在加载房间...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

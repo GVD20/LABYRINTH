@@ -2,6 +2,160 @@ const Utils = {
     sleep: (ms) => new Promise(r => setTimeout(r, ms))
 };
 
+// ==================== Supabase & Multiplayer ====================
+// 请在此处填写你的 Supabase 配置
+const SUPABASE_URL = ''; 
+const SUPABASE_ANON_KEY = '';
+let supabase = null;
+
+if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+const App = {
+    mode: 'single', // 'single' or 'multi'
+    
+    showSinglePlayer() {
+        this.mode = 'single';
+        document.getElementById('btnSingle').classList.add('primary');
+        document.getElementById('btnMulti').classList.remove('primary');
+        document.getElementById('singlePlayerMenu').style.display = 'block';
+        document.getElementById('multiplayerLobby').style.display = 'none';
+    },
+
+    switchPage(to) {
+        UI.switchPage(to);
+    }
+};
+
+const Multiplayer = {
+    currentRoom: null,
+    rooms: [],
+
+    showLobby() {
+        App.mode = 'multi';
+        document.getElementById('btnSingle').classList.remove('primary');
+        document.getElementById('btnMulti').classList.add('primary');
+        document.getElementById('singlePlayerMenu').style.display = 'none';
+        document.getElementById('multiplayerLobby').style.display = 'block';
+        this.refreshRooms();
+    },
+
+    async refreshRooms() {
+        if (!supabase) return alert("请先配置 Supabase URL 和 Key");
+        const { data, error } = await supabase.from('rooms').select('*').order('created_at', { ascending: false });
+        if (error) return console.error(error);
+        this.rooms = data;
+        this.renderRooms();
+    },
+
+    renderRooms() {
+        const el = document.getElementById('roomList');
+        el.innerHTML = '';
+        if (this.rooms.length === 0) {
+            el.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">暂无房间，快去创建一个吧！</div>';
+            return;
+        }
+        this.rooms.forEach(room => {
+            const d = document.createElement('div');
+            d.className = 'history-item';
+            d.innerHTML = `
+                <div class="history-emoji">${room.password ? '🔒' : '🌐'}</div>
+                <div style="flex:1">
+                    <div style="font-weight:700;">${room.name}</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted);">${room.status === 'playing' ? '游戏中' : '等待中'}</div>
+                </div>
+                <button class="btn" onclick="Multiplayer.joinRoom('${room.id}', ${!!room.password})">加入</button>
+            `;
+            el.appendChild(d);
+        });
+    },
+
+    openCreateModal() {
+        document.getElementById('roomModal').classList.add('active');
+    },
+
+    closeCreateModal() {
+        document.getElementById('roomModal').classList.remove('active');
+    },
+
+    async confirmCreateRoom() {
+        const name = document.getElementById('roomNameInput').value;
+        const password = document.getElementById('roomPassInput').value;
+        if (!name) return alert("请输入房间名");
+
+        const { data, error } = await supabase.from('rooms').insert([{
+            name,
+            password,
+            config: Api.cfg,
+            status: 'waiting',
+            created_at: new Date()
+        }]).select();
+
+        if (error) return alert("创建失败: " + error.message);
+        this.closeCreateModal();
+        this.joinRoom(data[0].id);
+    },
+
+    async joinRoom(roomId, hasPassword) {
+        if (hasPassword) {
+            const pass = prompt("请输入房间密码:");
+            const { data } = await supabase.from('rooms').select('password').eq('id', roomId).single();
+            if (data.password !== pass) return alert("密码错误");
+        }
+
+        this.currentRoom = roomId;
+        const { data: room } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+        
+        // 使用房间的 API 配置
+        if (room.config) {
+            Api.cfg = room.config;
+        }
+
+        // 订阅消息
+        supabase.channel(`room:${roomId}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` }, 
+                payload => this.handleNewMessage(payload.new))
+            .subscribe();
+
+        // 如果房间已经在游戏中，加载状态
+        if (room.status === 'playing' && room.game_state) {
+            Game.state = room.game_state;
+            // 重新渲染 UI
+            this.syncGameState();
+        }
+
+        App.switchPage('page-game');
+    },
+
+    async sendMessage(type, content) {
+        if (!this.currentRoom) return;
+        await supabase.from('messages').insert([{
+            room_id: this.currentRoom,
+            type,
+            content,
+            sender: 'user', // 实际应用中可以加入用户名
+            created_at: new Date()
+        }]);
+    },
+
+    handleNewMessage(msg) {
+        if (msg.type === 'story_init') {
+            // 只有房主或第一个进入的人触发生成？不，这里应该是同步生成结果
+            const data = JSON.parse(msg.content);
+            Game.applyGeneratedPuzzle(data);
+        } else if (msg.type === 'chat') {
+            UI.addMsg(msg.sender === 'user' ? 'user' : 'ai', msg.content);
+        }
+    },
+
+    async syncGameState() {
+        // 同步游戏状态到数据库
+        if (!this.currentRoom) return;
+        await supabase.from('rooms').update({ game_state: Game.state }).eq('id', this.currentRoom);
+    }
+};
+
 // ==================== Physics Bubble Engine 3.2 ====================
 const Bubble = {
     nodes: [],
@@ -222,9 +376,7 @@ const Api = {
         btn.innerHTML = `<span class="iconify" data-icon="lucide:loader-2"></span> 扫描中...`;
         
         try {
-            const res = await fetch(`${base}/models`, {
-                headers: { 'Authorization': `Bearer ${key}` }
-            });
+            const res = await fetch(`/api/models?base=${encodeURIComponent(base)}&key=${encodeURIComponent(key)}`);
             const data = await res.json();
             if(data && data.data) {
                 this.availableModels = data.data.map(m => m.id).sort();
@@ -314,22 +466,26 @@ const Api = {
         el.innerText = "连接中...";
         el.style.color = "var(--text-muted)";
         
-        const payload = { model: model, messages: [{role:"user", content:"hi"}], max_tokens:1 };
-        console.group(`🚀 [API REQ] ${model}`);
-        console.log("URL:", `${document.getElementById('apiBase').value}/chat/completions`);
-        console.log("Headers:", { 'Content-Type':'application/json', 'Authorization':`Bearer ${document.getElementById('apiKey').value}` });
-        console.log("Body:", JSON.stringify(payload, null, 2));
-        console.groupEnd();
+        const payload = { 
+            prompt: "hi", 
+            config: {
+                base: document.getElementById('apiBase').value.replace(/\/$/, ""),
+                key: document.getElementById('apiKey').value,
+                model: model
+            },
+            stream: false 
+        };
 
         try {
-            const res = await fetch(`${document.getElementById('apiBase').value}/chat/completions`, {
+            const res = await fetch(`/api/llm`, {
                 method:'POST',
-                headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${document.getElementById('apiKey').value}` },
+                headers:{ 'Content-Type':'application/json' },
                 body: JSON.stringify(payload)
             });
             if(res.ok) {
                 el.innerHTML = `<span style="color:var(--c-yes)">✅ 连接成功</span>`;
             } else {
+                const err = await res.json();
                 el.innerHTML = `<span style="color:var(--c-no)">❌ 失败 ${res.status}</span>`;
             }
         } catch(e) { el.innerHTML = `<span style="color:var(--c-no)">❌ 网络错误</span>`; }
@@ -350,22 +506,20 @@ const Api = {
         el.innerHTML = `<span style="color:var(--guess)">🧠 测试思考中...</span>`;
         
         const payload = { 
-            model: model, 
-            messages: [{role:"user", content:"1+1=?"}], 
-            max_tokens: 100,
+            prompt: "1+1=?", 
+            config: {
+                base: base.replace(/\/$/, ""),
+                key: key,
+                model: model
+            },
             stream: true,
             enable_thinking: true
         };
-        
-        console.group(`🧠 [THINKING TEST] ${model}`);
-        console.log("URL:", `${base}/chat/completions`);
-        console.log("Body:", JSON.stringify(payload, null, 2));
-        console.groupEnd();
 
         try {
-            const res = await fetch(`${base}/chat/completions`, {
+            const res = await fetch(`/api/llm`, {
                 method:'POST',
-                headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
+                headers:{ 'Content-Type':'application/json' },
                 body: JSON.stringify(payload)
             });
             
@@ -390,12 +544,10 @@ const Api = {
                             const json = JSON.parse(line.substring(6));
                             const delta = json.choices?.[0]?.delta;
                             
-                            // 检测 reasoning_content (思考内容)
                             if(delta?.reasoning_content) {
                                 hasThinking = true;
                                 thinkingContent += delta.reasoning_content;
                             }
-                            // 检测普通 content
                             if(delta?.content) {
                                 normalContent += delta.content;
                             }
@@ -404,55 +556,54 @@ const Api = {
                 }
             }
             
-            console.log('%c[THINKING TEST RESULT]', 'color: #f59e0b; font-weight: bold;');
-            console.log('Has Thinking:', hasThinking);
-            console.log('Thinking Content:', thinkingContent);
-            console.log('Normal Content:', normalContent);
-
             if(hasThinking) {
                 el.innerHTML = `<span style="color:var(--c-yes)">✅ 支持思考模式</span>`;
-                console.log('%c✅ 模型支持 enable_thinking', 'color: #4ade80; font-size: 12px;');
             } else if(normalContent) {
                 el.innerHTML = `<span style="color:var(--guess)">⚠️ 无思考输出</span>`;
-                console.log('%c⚠️ 模型响应正常但无 reasoning_content，可能不支持思考模式', 'color: #f59e0b; font-size: 12px;');
             } else {
                 el.innerHTML = `<span style="color:var(--c-no)">❌ 无有效响应</span>`;
             }
 
         } catch(e) { 
-            console.error(e);
             el.innerHTML = `<span style="color:var(--c-no)">❌ ${e.message}</span>`; 
         }
     },
     
     async stream(model, messages, callbacks, options={}) {
         const payload = {
-            model: model, messages: messages, stream: true
+            prompt: messages[messages.length - 1].content,
+            systemPrompt: messages.find(m => m.role === 'system')?.content || "",
+            config: {
+                base: this.cfg.base,
+                key: this.cfg.key,
+                model: model
+            },
+            stream: true
         };
         if(options.temp !== undefined) payload.temperature = options.temp;
         if(options.thinking) payload.enable_thinking = true;
 
-        console.group(`🚀 [API REQ] ${model}`);
-        console.log("URL:", `${this.cfg.base}/chat/completions`);
-        console.log("Headers:", { 'Content-Type':'application/json', 'Authorization':`Bearer ${this.cfg.key}` });
-        console.log("Body:", JSON.stringify(payload, null, 2));
+        console.group(`🚀 [CLOUD API REQ] ${model}`);
+        console.log("URL:", `/api/llm`);
+        console.log("Payload:", JSON.stringify(payload, null, 2));
         console.groupEnd();
 
         try {
-            const res = await fetch(`${this.cfg.base}/chat/completions`, {
+            const res = await fetch(`/api/llm`, {
                 method:'POST',
-                headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${this.cfg.key}` },
+                headers:{ 'Content-Type':'application/json' },
                 body: JSON.stringify(payload)
             });
 
             if (!res.ok) {
-                throw new Error(`HTTP ${res.status}`);
+                const errData = await res.json();
+                throw new Error(errData.error || `HTTP ${res.status}`);
             }
 
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
             let fullText = "";
-            let thinkingText = "";  // 单独记录思考内容
+            let thinkingText = "";  
             let started = false;
 
             while(true) {
@@ -465,15 +616,14 @@ const Api = {
                             const json = JSON.parse(line.substring(6));
                             const delta = json.choices[0].delta;
                             
-                            // 统一合并 think 和 content 用于回调
                             let chunk = "";
                             if(delta.reasoning_content) {
                                 chunk += delta.reasoning_content;
-                                thinkingText += delta.reasoning_content;  // 累加思考内容
+                                thinkingText += delta.reasoning_content;  
                             }
                             if(delta.content) {
                                 chunk += delta.content;
-                                fullText += delta.content;  // 只累加正式内容
+                                fullText += delta.content;  
                             }
 
                             if(chunk) {
@@ -485,8 +635,7 @@ const Api = {
                 }
             }
             
-            // 打印完整响应，包含思考内容
-            console.group("%c[API RES] Complete", "color:green; font-weight:bold");
+            console.group("%c[CLOUD API RES] Complete", "color:green; font-weight:bold");
             if(thinkingText) {
                 console.log("%c🧠 Thinking:", "color:#f59e0b; font-weight:bold");
                 console.log(thinkingText);
@@ -1293,24 +1442,12 @@ const Game = {
                         // 设置默认 Emoji
                         if (!data.emoji) data.emoji = '🎭';
                         
-                        this.state.puzzle = data;
-                        
-                        // 最终确保一致
-                        this.updateTitleWithEmoji(data.title, data.emoji, true);
-                        
-                        document.getElementById('gamePuzzle').innerText = data.puzzle;
-                        document.getElementById('gamePuzzle').style.display = 'block';
-                        
-                        document.getElementById('gameContainer').className = 'game-container state-active';
-                        document.getElementById('inputWrapper').style.opacity = '1';
-                        
-                        this.state.status = 'active';
-                        this.saveHistory('active');
-                        this.updateStats();
-                        UI.addMsg('sys', '谜题已呈现。请提问/猜谜');
+                        this.applyGeneratedPuzzle(data);
 
-                        // ✨ 打印调试信息
-                        this.debugPrint();
+                        if (App.mode === 'multi') {
+                            Multiplayer.sendMessage('story_init', JSON.stringify(data));
+                            Multiplayer.syncGameState();
+                        }
 
                     } catch(e) {
                         console.error(e);
@@ -1321,6 +1458,27 @@ const Game = {
                 });
             }
         }, { thinking: true });
+    },
+
+    applyGeneratedPuzzle(data) {
+        this.state.puzzle = data;
+        
+        // 最终确保一致
+        this.updateTitleWithEmoji(data.title, data.emoji, true);
+        
+        document.getElementById('gamePuzzle').innerText = data.puzzle;
+        document.getElementById('gamePuzzle').style.display = 'block';
+        
+        document.getElementById('gameContainer').className = 'game-container state-active';
+        document.getElementById('inputWrapper').style.opacity = '1';
+        
+        this.state.status = 'active';
+        this.saveHistory('active');
+        this.updateStats();
+        UI.addMsg('sys', '谜题已呈现。请提问/猜谜');
+
+        // ✨ 打印调试信息
+        this.debugPrint();
     },
 
     updateTitleWithEmoji(title, emoji, instant = false) {
@@ -1407,7 +1565,12 @@ const Game = {
         this.state.lastInput = val;
         this.state.lastMode = this.mode;
 
-        UI.addMsg(this.mode==='ask'?'user-ask':'user-guess', val);
+        if (App.mode === 'multi') {
+            Multiplayer.sendMessage('chat', (this.mode==='ask' ? '[提问] ' : '[猜谜] ') + val);
+        } else {
+            UI.addMsg(this.mode==='ask'?'user-ask':'user-guess', val);
+        }
+        
         this.state.history.push({role:"user", content: this.mode==='ask' ? `[提问] ${val}` : `[猜谜] ${val}`});
         
         this.state.turnsUsed++;
@@ -1456,7 +1619,12 @@ const Game = {
                 this.state.isProcessing = false;
                 try {
                     const j = JSON.parse(txt.replace(/```json|```/g,''));
-                    UI.replacePlaceholder(id, j.res, 'ai');
+                    if (App.mode === 'multi') {
+                        Multiplayer.sendMessage('chat', j.res);
+                        Multiplayer.syncGameState();
+                    } else {
+                        UI.replacePlaceholder(id, j.res, 'ai');
+                    }
                     this.state.history.push({role:"assistant", content:j.res});
                     this.saveHistory('active');
                 } catch(e) { 
@@ -1547,7 +1715,12 @@ const Game = {
                         <div class="report-comment"><span class="iconify" data-icon="lucide:message-square"></span> ${res.comment || "继续努力！"}</div>
                     </div>`;
 
-                    UI.replacePlaceholder(id, html, 'ai', true);
+                    if (App.mode === 'multi') {
+                        Multiplayer.sendMessage('chat', html);
+                        Multiplayer.syncGameState();
+                    } else {
+                        UI.replacePlaceholder(id, html, 'ai', true);
+                    }
                     this.state.history.push({role:"assistant", content:html});
                     this.saveHistory('active');
 
