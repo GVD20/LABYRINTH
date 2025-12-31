@@ -114,7 +114,7 @@ const Multiplayer = {
         const { data: room } = await supabaseClient.from('rooms').select('*').eq('id', roomId).single();
         
         // 使用房间的 API 配置
-        if (room.config) {
+        if (room.config && room.config.base) {
             Api.cfg = room.config;
         }
 
@@ -124,14 +124,62 @@ const Multiplayer = {
                 payload => this.handleNewMessage(payload.new))
             .subscribe();
 
+        // 获取历史消息
+        const { data: msgs } = await supabaseClient.from('messages')
+            .select('*')
+            .eq('room_id', roomId)
+            .order('created_at', { ascending: true });
+        
+        if (msgs) {
+            document.getElementById('chatList').innerHTML = '';
+            Game.state.history = [];
+            msgs.forEach(m => this.handleNewMessage(m));
+        }
+
         // 如果房间已经在游戏中，加载状态
         if (room.status === 'playing' && room.game_state) {
             Game.state = room.game_state;
-            // 重新渲染 UI
-            this.syncGameState();
+            
+            // 初始化游戏 UI
+            document.getElementById('gameTitle').innerText = Game.state.puzzle.title;
+            document.getElementById('gameTags').innerHTML = Game.state.tags.join(' / ') + ` <span class="diff-badge">${Game.state.diff}</span>`;
+            document.getElementById('gamePuzzle').innerText = Game.state.puzzle.puzzle;
+            document.getElementById('gamePuzzle').style.display = 'block';
+            document.getElementById('gameContainer').className = 'game-container state-active';
+            document.getElementById('inputWrapper').style.opacity = '1';
+            
+            Game.updateTitleWithEmoji(Game.state.puzzle.title, Game.state.puzzle.emoji || '🎭', true);
+            Game.updateStats();
+            
+            App.switchPage('page-game');
+        } else {
+            // 如果是等待中，留在主页进行选词
+            this.showRoomSetup(room);
         }
+    },
 
-        App.switchPage('page-game');
+    showRoomSetup(room) {
+        App.mode = 'multi';
+        document.getElementById('singlePlayerMenu').style.display = 'block';
+        document.getElementById('multiplayerLobby').style.display = 'none';
+        
+        // 修改开始按钮文字
+        const startBtn = document.querySelector('#singlePlayerMenu .btn.primary');
+        startBtn.innerHTML = `<span class="iconify" data-icon="lucide:play"></span> 在房间中开始`;
+        
+        // 显示当前房间信息
+        let infoEl = document.getElementById('roomInfoBar');
+        if (!infoEl) {
+            infoEl = document.createElement('div');
+            infoEl.id = 'roomInfoBar';
+            infoEl.style = 'background:var(--primary); color:white; padding:8px 15px; border-radius:12px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; font-size:0.9rem;';
+            const menu = document.getElementById('singlePlayerMenu');
+            menu.insertBefore(infoEl, menu.firstChild);
+        }
+        infoEl.innerHTML = `
+            <span><span class="iconify" data-icon="lucide:home"></span> 房间: <strong>${room.name}</strong></span>
+            <button class="btn" style="padding:2px 8px; font-size:0.75rem; background:rgba(255,255,255,0.2); border:none;" onclick="location.reload()">退出房间</button>
+        `;
     },
 
     async sendMessage(type, content) {
@@ -147,18 +195,31 @@ const Multiplayer = {
 
     handleNewMessage(msg) {
         if (msg.type === 'story_init') {
-            // 只有房主或第一个进入的人触发生成？不，这里应该是同步生成结果
             const data = JSON.parse(msg.content);
             Game.applyGeneratedPuzzle(data);
         } else if (msg.type === 'chat') {
-            UI.addMsg(msg.sender === 'user' ? 'user' : 'ai', msg.content);
+            const isUser = msg.content.includes('[提问]') || msg.content.includes('[猜谜]');
+            const role = isUser ? (msg.content.includes('[提问]') ? 'user-ask' : 'user-guess') : 'ai';
+            
+            // 避免重复添加自己发送的消息（如果本地已经添加了）
+            // 但为了简单起见，我们可以统一由 handleNewMessage 处理 UI，Game.send 只负责发送
+            UI.addMsg(role, msg.content.replace(/^\[提问\]\s*/, '').replace(/^\[猜谜\]\s*/, ''));
+            
+            // 同步到本地历史记录
+            Game.state.history.push({
+                role: isUser ? 'user' : 'assistant',
+                content: msg.content
+            });
         }
     },
 
     async syncGameState() {
         // 同步游戏状态到数据库
         if (!this.currentRoom) return;
-        await supabaseClient.from('rooms').update({ game_state: Game.state }).eq('id', this.currentRoom);
+        await supabaseClient.from('rooms').update({ 
+            game_state: Game.state,
+            status: 'playing'
+        }).eq('id', this.currentRoom);
     }
 };
 
@@ -1449,12 +1510,21 @@ const Game = {
                         this.backToHome();
                     }
                 });
+            },
+            onError: (err) => {
+                console.error(err);
+                alert("生成失败: " + err.message);
+                this.TipsCarousel.stop();
+                this.backToHome();
             }
         }, { thinking: true });
     },
 
     applyGeneratedPuzzle(data) {
         this.state.puzzle = data;
+        
+        // 确保切换到游戏页面
+        UI.switchPage('page-game');
         
         // 最终确保一致
         this.updateTitleWithEmoji(data.title, data.emoji, true);
@@ -1562,9 +1632,8 @@ const Game = {
             Multiplayer.sendMessage('chat', (this.mode==='ask' ? '[提问] ' : '[猜谜] ') + val);
         } else {
             UI.addMsg(this.mode==='ask'?'user-ask':'user-guess', val);
+            this.state.history.push({role:"user", content: this.mode==='ask' ? `[提问] ${val}` : `[猜谜] ${val}`});
         }
-        
-        this.state.history.push({role:"user", content: this.mode==='ask' ? `[提问] ${val}` : `[猜谜] ${val}`});
         
         this.state.turnsUsed++;
         this.updateStats();
@@ -1617,8 +1686,8 @@ const Game = {
                         Multiplayer.syncGameState();
                     } else {
                         UI.replacePlaceholder(id, j.res, 'ai');
+                        this.state.history.push({role:"assistant", content:j.res});
                     }
-                    this.state.history.push({role:"assistant", content:j.res});
                     this.saveHistory('active');
                 } catch(e) { 
                     UI.replacePlaceholder(id, `解析错误: ${e.message}`, 'system-error', true); 
@@ -1713,8 +1782,8 @@ const Game = {
                         Multiplayer.syncGameState();
                     } else {
                         UI.replacePlaceholder(id, html, 'ai', true);
+                        this.state.history.push({role:"assistant", content:html});
                     }
-                    this.state.history.push({role:"assistant", content:html});
                     this.saveHistory('active');
 
                     // 通关条件：累计进度达到 100% 且本次满分 - 直接结算，不弹窗
