@@ -39,6 +39,11 @@ const Multiplayer = {
     rooms: [],
 
     showLobby() {
+        if(!Api.cfg.base || !Api.cfg.key || !Api.cfg.storyModel) {
+            alert("请先点击右上角设置按钮配置 API Key 和模型，以便在房间中生成谜题");
+            Api.open();
+            return;
+        }
         App.mode = 'multi';
         document.getElementById('btnSingle').classList.remove('primary');
         document.getElementById('btnMulti').classList.add('primary');
@@ -86,6 +91,11 @@ const Multiplayer = {
     },
 
     async confirmCreateRoom() {
+        if(!Api.cfg.base || !Api.cfg.key || !Api.cfg.storyModel) {
+            alert("请先配置 API Key");
+            Api.open();
+            return;
+        }
         const name = document.getElementById('roomNameInput').value;
         const password = document.getElementById('roomPassInput').value;
         if (!name) return alert("请输入房间名");
@@ -396,7 +406,7 @@ const Api = {
     init() {
         const s = localStorage.getItem('labyrinth_cfg');
         if(s) this.cfg = JSON.parse(s);
-        if(!this.cfg.base) this.open(true);
+        this.updateSettingsButton();
         
         // Auto close dropdowns when clicking outside
         document.addEventListener('click', (e) => {
@@ -411,11 +421,8 @@ const Api = {
         document.getElementById('apiKey').value = this.cfg.key || "";
         document.getElementById('modelStory').value = this.cfg.storyModel || "";
         document.getElementById('modelFast').value = this.cfg.fastModel || "";
-        const btn = document.getElementById('apiCloseBtn');
-        if(btn) btn.style.display = force ? 'none' : 'block';
     },
     close() { 
-        if(document.getElementById('apiCloseBtn').style.display === 'none' && !localStorage.getItem('labyrinth_cfg')) return;
         document.getElementById('apiModal').classList.remove('active'); 
         this.closePicker();
     },
@@ -426,7 +433,21 @@ const Api = {
         this.cfg.fastModel = document.getElementById('modelFast').value;
         if(!this.cfg.base || !this.cfg.storyModel) return alert("请填写完整配置");
         localStorage.setItem('labyrinth_cfg', JSON.stringify(this.cfg));
+        this.updateSettingsButton();
         this.close();
+    },
+    updateSettingsButton() {
+        const btn = document.getElementById('apiSettingsBtn');
+        if (!btn) return;
+        if (!this.cfg.base || !this.cfg.key || !this.cfg.storyModel) {
+            btn.style.color = 'var(--c-no)';
+            btn.style.borderColor = 'var(--c-no)';
+            btn.classList.add('pulse-error');
+        } else {
+            btn.style.color = '';
+            btn.style.borderColor = '';
+            btn.classList.remove('pulse-error');
+        }
     },
     setBaseUrl(url) {
         document.getElementById('apiBase').value = url;
@@ -1114,6 +1135,11 @@ const Game = {
 
     // 修改：initNew 方法，重置新状态
     initNew() {
+        if(!Api.cfg.base || !Api.cfg.key || !Api.cfg.storyModel) {
+            alert("请先点击右上角设置按钮配置 API Key 和模型");
+            Api.open();
+            return;
+        }
         if(Bubble.selected.size === 0) return alert("请至少选择 1 个关键词");
         this.state.tags = Array.from(Bubble.selected);
         this.state.history = [];
