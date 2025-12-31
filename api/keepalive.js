@@ -1,27 +1,31 @@
+import { createClient } from '@supabase/supabase-js';
+
 export default async function handler(req, res) {
-  // 简单保活：向 Supabase 发起 GET 请求到根或 info 接口
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+    const supabaseUrl = process.env.DATABASE_URL || process.env.database_url;
+    const supabaseKey = process.env.DATABASE_ANON_KEY || process.env.database_anon_key;
 
-  if (!SUPABASE_URL) {
-    return res.status(400).json({ ok: false, error: 'Missing SUPABASE_URL' });
-  }
+    if (!supabaseUrl || !supabaseKey) {
+        return res.status(500).json({ error: 'Missing Supabase configuration' });
+    }
 
-  try {
-    const target = `${SUPABASE_URL.replace(/\/+$/, '')}/rest/v1?select=`; // 简单请求到 REST 根不改变数据
-    const r = await fetch(target, {
-      method: 'GET',
-      headers: {
-        'Authorization': SUPABASE_ANON_KEY ? `Bearer ${SUPABASE_ANON_KEY}` : '',
-        'Accept': 'application/json'
-      },
-      // 设短超时
-      signal: (new AbortController()).signal
-    });
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 仅返回状态，避免泄露响应体
-    return res.status(200).json({ ok: true, status: r.status });
-  } catch (e) {
-    return res.status(500).json({ ok: false, error: e.message });
-  }
+    try {
+        const { data, error } = await supabase.from('rooms').select('id').limit(1);
+
+        if (error) throw error;
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Database pinged successfully', 
+            timestamp: new Date().toISOString() 
+        });
+    } catch (error) {
+        console.error('Keepalive Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
 }
