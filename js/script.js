@@ -382,7 +382,9 @@ const Api = {
         btn.innerHTML = `<span class="iconify" data-icon="lucide:loader-2"></span> 扫描中...`;
         
         try {
-            const res = await fetch(`/api/models?base=${encodeURIComponent(base)}&key=${encodeURIComponent(key)}`);
+            const res = await fetch(`${base}/models`, {
+                headers: { 'Authorization': `Bearer ${key}` }
+            });
             const data = await res.json();
             if(data && data.data) {
                 this.availableModels = data.data.map(m => m.id).sort();
@@ -469,29 +471,22 @@ const Api = {
     async test(type) {
         const el = document.getElementById(type==='story'?'testStory':'testFast');
         const model = document.getElementById(type==='story'?'modelStory':'modelFast').value;
+        const base = document.getElementById('apiBase').value.replace(/\/$/, "");
+        const key = document.getElementById('apiKey').value;
         el.innerText = "连接中...";
         el.style.color = "var(--text-muted)";
         
-        const payload = { 
-            prompt: "hi", 
-            config: {
-                base: document.getElementById('apiBase').value.replace(/\/$/, ""),
-                key: document.getElementById('apiKey').value,
-                model: model
-            },
-            stream: false 
-        };
+        const payload = { model: model, messages: [{role:"user", content:"hi"}], max_tokens:1 };
 
         try {
-            const res = await fetch(`/api/llm`, {
+            const res = await fetch(`${base}/chat/completions`, {
                 method:'POST',
-                headers:{ 'Content-Type':'application/json' },
+                headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
                 body: JSON.stringify(payload)
             });
             if(res.ok) {
                 el.innerHTML = `<span style="color:var(--c-yes)">✅ 连接成功</span>`;
             } else {
-                const err = await res.json();
                 el.innerHTML = `<span style="color:var(--c-no)">❌ 失败 ${res.status}</span>`;
             }
         } catch(e) { el.innerHTML = `<span style="color:var(--c-no)">❌ 网络错误</span>`; }
@@ -501,7 +496,7 @@ const Api = {
     async testThinking(type) {
         const el = document.getElementById(type==='story'?'testStory':'testFast');
         const model = document.getElementById(type==='story'?'modelStory':'modelFast').value;
-        const base = document.getElementById('apiBase').value;
+        const base = document.getElementById('apiBase').value.replace(/\/$/, "");
         const key = document.getElementById('apiKey').value;
         
         if (!model) {
@@ -512,20 +507,17 @@ const Api = {
         el.innerHTML = `<span style="color:var(--guess)">🧠 测试思考中...</span>`;
         
         const payload = { 
-            prompt: "1+1=?", 
-            config: {
-                base: base.replace(/\/$/, ""),
-                key: key,
-                model: model
-            },
+            model: model, 
+            messages: [{role:"user", content:"1+1=?"}], 
+            max_tokens: 100,
             stream: true,
             enable_thinking: true
         };
 
         try {
-            const res = await fetch(`/api/llm`, {
+            const res = await fetch(`${base}/chat/completions`, {
                 method:'POST',
-                headers:{ 'Content-Type':'application/json' },
+                headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
                 body: JSON.stringify(payload)
             });
             
@@ -577,39 +569,32 @@ const Api = {
     
     async stream(model, messages, callbacks, options={}) {
         const payload = {
-            prompt: messages[messages.length - 1].content,
-            systemPrompt: messages.find(m => m.role === 'system')?.content || "",
-            config: {
-                base: this.cfg.base,
-                key: this.cfg.key,
-                model: model
-            },
-            stream: true
+            model: model, messages: messages, stream: true
         };
         if(options.temp !== undefined) payload.temperature = options.temp;
         if(options.thinking) payload.enable_thinking = true;
 
-        console.group(`🚀 [CLOUD API REQ] ${model}`);
-        console.log("URL:", `/api/llm`);
-        console.log("Payload:", JSON.stringify(payload, null, 2));
+        console.group(`🚀 [API REQ] ${model}`);
+        console.log("URL:", `${this.cfg.base}/chat/completions`);
+        console.log("Headers:", { 'Content-Type':'application/json', 'Authorization':`Bearer ${this.cfg.key}` });
+        console.log("Body:", JSON.stringify(payload, null, 2));
         console.groupEnd();
 
         try {
-            const res = await fetch(`/api/llm`, {
+            const res = await fetch(`${this.cfg.base}/chat/completions`, {
                 method:'POST',
-                headers:{ 'Content-Type':'application/json' },
+                headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${this.cfg.key}` },
                 body: JSON.stringify(payload)
             });
 
             if (!res.ok) {
-                const errData = await res.json();
-                throw new Error(errData.error || `HTTP ${res.status}`);
+                throw new Error(`HTTP ${res.status}`);
             }
 
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
             let fullText = "";
-            let thinkingText = "";  
+            let thinkingText = "";  // 单独记录思考内容
             let started = false;
 
             while(true) {
@@ -622,14 +607,15 @@ const Api = {
                             const json = JSON.parse(line.substring(6));
                             const delta = json.choices[0].delta;
                             
+                            // 统一合并 think 和 content 用于回调
                             let chunk = "";
                             if(delta.reasoning_content) {
                                 chunk += delta.reasoning_content;
-                                thinkingText += delta.reasoning_content;  
+                                thinkingText += delta.reasoning_content;  // 累加思考内容
                             }
                             if(delta.content) {
                                 chunk += delta.content;
-                                fullText += delta.content;  
+                                fullText += delta.content;  // 只累加正式内容
                             }
 
                             if(chunk) {
@@ -641,7 +627,8 @@ const Api = {
                 }
             }
             
-            console.group("%c[CLOUD API RES] Complete", "color:green; font-weight:bold");
+            // 打印完整响应，包含思考内容
+            console.group("%c[API RES] Complete", "color:green; font-weight:bold");
             if(thinkingText) {
                 console.log("%c🧠 Thinking:", "color:#f59e0b; font-weight:bold");
                 console.log(thinkingText);
