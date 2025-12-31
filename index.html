@@ -24,7 +24,95 @@
     <canvas id="confetti"></canvas>
 
     <div class="modal-overlay" id="apiModal">
-        <!-- ... existing apiModal content ... -->
+        <div class="modal-card glass-panel">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span class="iconify" data-icon="lucide:settings" style="color:var(--primary)"></span>
+                    API 配置
+                </div>
+                <button id="apiCloseBtn" class="btn" onclick="Api.close()" style="width: 36px; height: 36px; padding:0; border-radius:50%;">
+                    <span class="iconify" data-icon="lucide:x"></span>
+                </button>
+            </div>
+            
+            <div id="modelPicker" class="model-picker-overlay">
+                <div style="display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px;">
+                    <button class="btn" onclick="Api.closePicker()" style="padding:6px;"><span class="iconify" data-icon="lucide:arrow-left"></span></button>
+                    <input type="text" id="modelSearch" class="api-input" placeholder="搜索模型..." oninput="Api.filterModels(this.value)">
+                </div>
+                <div id="modelList" class="model-list"></div>
+            </div>
+
+            <div class="api-group">
+                <label class="api-label">Base URL</label>
+                <div class="input-with-btn">
+                    <input type="text" id="apiBase" class="api-input" placeholder="e.g. https://api.deepseek.com/v1">
+                    <button class="btn scan-success" onclick="Api.fetchModels()" title="扫描模型" style="padding:0 12px; gap:6px;">
+                        <span class="iconify" data-icon="lucide:refresh-cw"></span> 扫描模型
+                    </button>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="preset-chips">
+                        <div class="chip" onclick="Api.setBaseUrl('https://api.openai.com/v1')">OpenAI</div>
+                        <div class="chip" onclick="Api.setBaseUrl('https://dashscope.aliyuncs.com/compatible-mode/v1')">阿里云百炼</div>
+                        <div class="chip" onclick="Api.setBaseUrl('https://api.deepseek.com/v1')">DeepSeek</div>
+                        <div class="chip" onclick="Api.setBaseUrl('http://localhost:1234/v1')">LM Studio</div>
+                    </div>
+                    <div id="scanStatus" style="font-size:0.75rem; color:var(--c-yes); transition:opacity 0.5s; opacity:0;"></div>
+                </div>
+            </div>
+            
+            <div class="api-group">
+                <label class="api-label">API Key</label>
+                <input type="password" id="apiKey" class="api-input" placeholder="sk-...">
+            </div>
+
+            <div class="model-row">
+                <div class="api-group">
+                    <label class="api-label">故事模型 (Reasoning)</label>
+                    <div class="input-with-btn">
+                        <input type="text" id="modelStory" class="api-input" placeholder="e.g. deepseek-r1" oninput="Api.handleInput('story', this.value)" onfocus="Api.handleInput('story', this.value)">
+                        <div id="dd-story" class="model-dropdown"></div>
+                        <button class="btn" onclick="Api.openPicker('story')" style="padding:0 10px;"><span class="iconify" data-icon="lucide:list"></span></button>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn" onclick="Api.test('story')" style="font-size:0.75rem; padding:4px 8px;">
+                                <span class="iconify" data-icon="lucide:play"></span> 测试
+                            </button>
+                            <button class="btn" onclick="Api.testThinking('story')" style="font-size:0.75rem; padding:4px 8px; color:var(--guess); border-color:rgba(245,158,11,0.3);">
+                                <span class="iconify" data-icon="lucide:brain"></span> 测试思考
+                            </button>
+                        </div>
+                        <div id="testStory" style="font-size:0.75rem;"></div>
+                    </div>
+                </div>
+
+                <div class="api-group">
+                    <label class="api-label">裁判模型 (Chat)</label>
+                    <div class="input-with-btn">
+                        <input type="text" id="modelFast" class="api-input" placeholder="e.g. qwen2.5-30b-a3b" oninput="Api.handleInput('fast', this.value)" onfocus="Api.handleInput('fast', this.value)">
+                        <div id="dd-fast" class="model-dropdown"></div>
+                        <button class="btn" onclick="Api.openPicker('fast')" style="padding:0 10px;"><span class="iconify" data-icon="lucide:list"></span></button>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn" onclick="Api.test('fast')" style="font-size:0.75rem; padding:4px 8px;">
+                                <span class="iconify" data-icon="lucide:play"></span> 测试
+                            </button>
+                            <button class="btn" onclick="Api.testThinking('fast')" style="font-size:0.75rem; padding:4px 8px; color:var(--guess); border-color:rgba(245,158,11,0.3);">
+                                <span class="iconify" data-icon="lucide:brain"></span> 测试思考
+                            </button>
+                        </div>
+                        <div id="testFast" style="font-size:0.75rem;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn primary" onclick="Api.save()" style="width:100%; padding:12px; margin-top:5px;">
+                <span class="iconify" data-icon="lucide:save"></span> 保存配置
+            </button>
+        </div>
     </div>
 
     <div class="modal-overlay" id="roomModal">

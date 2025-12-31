@@ -3,7 +3,7 @@ const Utils = {
 };
 
 // ==================== Supabase & Multiplayer ====================
-let supabase = null;
+let supabaseClient = null;
 
 const App = {
     mode: 'single', // 'single' or 'multi'
@@ -13,7 +13,7 @@ const App = {
             const res = await fetch('/api/config');
             const config = await res.json();
             if (config.url && config.anonKey) {
-                supabase = window.supabase.createClient(config.url, config.anonKey);
+                supabaseClient = window.supabase.createClient(config.url, config.anonKey);
                 console.log("Supabase initialized via Vercel env vars");
             }
         } catch (e) {
@@ -48,8 +48,8 @@ const Multiplayer = {
     },
 
     async refreshRooms() {
-        if (!supabase) return alert("请先配置 Supabase URL 和 Key");
-        const { data, error } = await supabase.from('rooms').select('*').order('created_at', { ascending: false });
+        if (!supabaseClient) return alert("请先配置 Supabase URL 和 Key");
+        const { data, error } = await supabaseClient.from('rooms').select('*').order('created_at', { ascending: false });
         if (error) return console.error(error);
         this.rooms = data;
         this.renderRooms();
@@ -90,7 +90,7 @@ const Multiplayer = {
         const password = document.getElementById('roomPassInput').value;
         if (!name) return alert("请输入房间名");
 
-        const { data, error } = await supabase.from('rooms').insert([{
+        const { data, error } = await supabaseClient.from('rooms').insert([{
             name,
             password,
             config: Api.cfg,
@@ -106,12 +106,12 @@ const Multiplayer = {
     async joinRoom(roomId, hasPassword) {
         if (hasPassword) {
             const pass = prompt("请输入房间密码:");
-            const { data } = await supabase.from('rooms').select('password').eq('id', roomId).single();
+            const { data } = await supabaseClient.from('rooms').select('password').eq('id', roomId).single();
             if (data.password !== pass) return alert("密码错误");
         }
 
         this.currentRoom = roomId;
-        const { data: room } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+        const { data: room } = await supabaseClient.from('rooms').select('*').eq('id', roomId).single();
         
         // 使用房间的 API 配置
         if (room.config) {
@@ -119,7 +119,7 @@ const Multiplayer = {
         }
 
         // 订阅消息
-        supabase.channel(`room:${roomId}`)
+        supabaseClient.channel(`room:${roomId}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` }, 
                 payload => this.handleNewMessage(payload.new))
             .subscribe();
@@ -136,7 +136,7 @@ const Multiplayer = {
 
     async sendMessage(type, content) {
         if (!this.currentRoom) return;
-        await supabase.from('messages').insert([{
+        await supabaseClient.from('messages').insert([{
             room_id: this.currentRoom,
             type,
             content,
@@ -158,7 +158,7 @@ const Multiplayer = {
     async syncGameState() {
         // 同步游戏状态到数据库
         if (!this.currentRoom) return;
-        await supabase.from('rooms').update({ game_state: Game.state }).eq('id', this.currentRoom);
+        await supabaseClient.from('rooms').update({ game_state: Game.state }).eq('id', this.currentRoom);
     }
 };
 
