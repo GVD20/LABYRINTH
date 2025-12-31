@@ -210,10 +210,14 @@ const Multiplayer = {
         } else if (msg.type === 'chat') {
             const isUser = msg.content.includes('[提问]') || msg.content.includes('[猜谜]');
             const role = isUser ? (msg.content.includes('[提问]') ? 'user-ask' : 'user-guess') : 'ai';
-            
+            const isHtml = !isUser && msg.content.trim().startsWith('<div');
+            const displayContent = isUser 
+                ? msg.content.replace(/^\[提问\]\s*/, '').replace(/^\[猜谜\]\s*/, '')
+                : msg.content;
+
             // 避免重复添加自己发送的消息（如果本地已经添加了）
             // 但为了简单起见，我们可以统一由 handleNewMessage 处理 UI，Game.send 只负责发送
-            UI.addMsg(role, msg.content.replace(/^\[提问\]\s*/, '').replace(/^\[猜谜\]\s*/, ''));
+            UI.addMsg(role, displayContent, null, isHtml);
             
             // 同步到本地历史记录
             Game.state.history.push({
