@@ -3,18 +3,24 @@ const Utils = {
 };
 
 // ==================== Supabase & Multiplayer ====================
-// 请在此处填写你的 Supabase 配置
-const SUPABASE_URL = ''; 
-const SUPABASE_ANON_KEY = '';
 let supabase = null;
-
-if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
 
 const App = {
     mode: 'single', // 'single' or 'multi'
     
+    async init() {
+        try {
+            const res = await fetch('/api/config');
+            const config = await res.json();
+            if (config.url && config.anonKey) {
+                supabase = window.supabase.createClient(config.url, config.anonKey);
+                console.log("Supabase initialized via Vercel env vars");
+            }
+        } catch (e) {
+            console.warn("Supabase config fetch failed, multiplayer may not work:", e);
+        }
+    },
+
     showSinglePlayer() {
         this.mode = 'single';
         document.getElementById('btnSingle').classList.add('primary');
@@ -2185,6 +2191,7 @@ const History = {
 
 // ==================== Start ====================
 window.onload = () => {
+    App.init();
     Api.init();
     Bubble.init();
     History.init();
