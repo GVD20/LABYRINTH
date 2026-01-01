@@ -97,6 +97,11 @@ const Multiplayer = {
             Api.open();
             return;
         }
+        if(!Api.isVerified) {
+            alert("创建房间前，请先在 API 设置中通过故事模型的“测试思考”验证模型支持思考模式。");
+            Api.open();
+            return;
+        }
         const name = document.getElementById('roomNameInput').value;
         const password = document.getElementById('roomPassInput').value;
         if (!name) return alert("请输入房间名");
@@ -136,9 +141,11 @@ const Multiplayer = {
         this.currentRoom = roomId;
         this.roomPassword = pass;
         
-        // 使用房间的 API 配置
-        if (room.config && room.config.base) {
+        // 如果本地没有完整配置，则使用房间的 API 配置
+        const hasLocalConfig = Api.cfg.base && Api.cfg.key && Api.cfg.storyModel;
+        if (!hasLocalConfig && room.config && room.config.base) {
             Api.cfg = room.config;
+            Api.isVerified = true; // 房主已验证过，加入者直接标记为已验证
         }
 
         // 订阅消息
@@ -424,6 +431,7 @@ const Bubble = {
 // ==================== API Module ====================
 const Api = {
     cfg: { base:"", key:"", storyModel:"", fastModel:"" },
+    isVerified: false,
     availableModels: [],
     activeTarget: null,
     
@@ -432,6 +440,13 @@ const Api = {
         if(s) this.cfg = JSON.parse(s);
         this.updateSettingsButton();
         
+        // 监听输入变化，重置验证状态
+        const resetVerify = () => { this.isVerified = false; };
+        document.getElementById('apiBase')?.addEventListener('input', resetVerify);
+        document.getElementById('apiKey')?.addEventListener('input', resetVerify);
+        document.getElementById('modelStory')?.addEventListener('input', resetVerify);
+        document.getElementById('modelFast')?.addEventListener('input', resetVerify);
+
         // Auto close dropdowns when clicking outside
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.input-with-btn')) {
@@ -456,6 +471,7 @@ const Api = {
         this.cfg.storyModel = document.getElementById('modelStory').value;
         this.cfg.fastModel = document.getElementById('modelFast').value;
         if(!this.cfg.base || !this.cfg.storyModel) return alert("请填写完整配置");
+        this.isVerified = false; // 保存新配置后需要重新验证
         localStorage.setItem('labyrinth_cfg', JSON.stringify(this.cfg));
         this.updateSettingsButton();
         this.close();
@@ -475,6 +491,7 @@ const Api = {
     },
     setBaseUrl(url) {
         document.getElementById('apiBase').value = url;
+        this.isVerified = false;
     },
     
     // Model Fetching & Dropdown Logic
@@ -511,6 +528,7 @@ const Api = {
     },
     
     handleInput(target, val) {
+        this.isVerified = false;
         const dd = document.getElementById(target === 'story' ? 'dd-story' : 'dd-fast');
         if (this.availableModels.length === 0) {
             dd.classList.remove('active');
@@ -563,6 +581,7 @@ const Api = {
             d.innerText = m;
             d.onclick = () => {
                 document.getElementById(this.activeTarget === 'story' ? 'modelStory' : 'modelFast').value = m;
+                this.isVerified = false;
                 this.closePicker();
             };
             el.appendChild(d);
@@ -662,6 +681,7 @@ const Api = {
             
             if(hasThinking) {
                 el.innerHTML = `<span style="color:var(--c-yes)">✅ 支持思考模式</span>`;
+                if (type === 'story') this.isVerified = true;
             } else if(normalContent) {
                 el.innerHTML = `<span style="color:var(--guess)">⚠️ 无思考输出</span>`;
             } else {
