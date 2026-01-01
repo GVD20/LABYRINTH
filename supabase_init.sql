@@ -3,11 +3,16 @@ CREATE TABLE IF NOT EXISTS public.rooms (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     password TEXT,
+    is_private BOOLEAN DEFAULT FALSE,
     config JSONB DEFAULT '{}'::jsonb,
     status TEXT DEFAULT 'waiting',
     game_state JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- 确保旧表也能增加 is_private 列
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE;
+UPDATE public.rooms SET is_private = (password IS NOT NULL AND password <> '') WHERE is_private IS NULL;
 
 -- 2. 创建消息表 (messages)
 CREATE TABLE IF NOT EXISTS public.messages (
@@ -26,7 +31,7 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 -- 核心安全变更：限制匿名用户直接读取敏感列 (password, config)
 -- 这样即使别人有 anon_key，也无法通过 select * 偷走你的 API Key
 REVOKE ALL ON public.rooms FROM anon;
-GRANT SELECT (id, name, status, created_at) ON public.rooms TO anon; -- 仅允许在大厅查看基本信息
+GRANT SELECT (id, name, status, is_private, created_at) ON public.rooms TO anon; 
 GRANT INSERT, UPDATE ON public.rooms TO anon;
 GRANT SELECT, INSERT ON public.messages TO anon;
 
@@ -69,6 +74,19 @@ BEGIN
       AND (r.password IS NULL OR r.password = pass_param);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 自动更新 is_private 的触发器
+CREATE OR REPLACE FUNCTION sync_is_private() RETURNS TRIGGER AS $$
+BEGIN
+    NEW.is_private := (NEW.password IS NOT NULL AND NEW.password <> '');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sync_is_private ON public.rooms;
+CREATE TRIGGER trg_sync_is_private
+BEFORE INSERT OR UPDATE OF password ON public.rooms
+FOR EACH ROW EXECUTE FUNCTION sync_is_private();
 
 -- 5. 开启实时同步 (Realtime)
 -- 将表添加到 supabase_realtime 发布中

@@ -55,7 +55,11 @@ const Multiplayer = {
 
     async refreshRooms() {
         if (!supabaseClient) return alert("请先配置 Supabase URL 和 Key");
-        const { data, error } = await supabaseClient.from('rooms').select('*').order('created_at', { ascending: false });
+        // 仅选择已授权的列，避免 42501 权限错误
+        const { data, error } = await supabaseClient.from('rooms')
+            .select('id, name, status, is_private, created_at') 
+            .order('created_at', { ascending: false });
+        
         if (error) return console.error(error);
         this.rooms = data;
         this.renderRooms();
@@ -72,12 +76,12 @@ const Multiplayer = {
             const d = document.createElement('div');
             d.className = 'history-item';
             d.innerHTML = `
-                <div class="history-emoji">${room.password ? '🔒' : '🌐'}</div>
+                <div class="history-emoji">${room.is_private ? '🔒' : '🌐'}</div>
                 <div style="flex:1">
                     <div style="font-weight:700;">${room.name}</div>
                     <div style="font-size:0.75rem; color:var(--text-muted);">${room.status === 'playing' ? '游戏中' : '等待中'}</div>
                 </div>
-                <button class="btn" onclick="Multiplayer.joinRoom('${room.id}', ${!!room.password})">加入</button>
+                <button class="btn" onclick="Multiplayer.joinRoom('${room.id}', ${!!room.is_private})">加入</button>
             `;
             el.appendChild(d);
         });
@@ -112,7 +116,7 @@ const Multiplayer = {
             config: Api.cfg,
             status: 'waiting',
             created_at: new Date()
-        }]).select();
+        }]).select('id'); // 仅选择 id，避免因权限问题导致创建失败
 
         if (error) return alert("创建失败: " + error.message);
         this.closeCreateModal();
