@@ -15,7 +15,7 @@ const Game = {
         draftGuess: "",
         status: 'idle',
         titleFound: false,
-        settlePromptShown: false,  // 是否已显示过结算提示
+        lastSettlePromptPoints: 0, // 记录上次显示结算提示时的要点数
         canSettle: false,          // 是否可以结算
         highestScore: 0,           // 历史最高单次得分
         lastInput: "",             // 记录最后一次输入用于重试
@@ -176,7 +176,7 @@ const Game = {
         this.state.draftGuess = "";
         this.state.status = 'generating';
         this.state.titleFound = false;
-        this.state.settlePromptShown = false;  // 重置结算提示状态
+        this.state.lastSettlePromptPoints = 0; // 重置结算提示要点数
         this.state.canSettle = false;          // 重置结算按钮状态
         this.state.highestScore = 0;           // 重置最高分
 
@@ -215,30 +215,28 @@ const Game = {
         this.generate();
     },
 
-    createEmojiContainer(emoji) {
+    createEmojiContainer(emoji, opacity = '1') {
         const titleEl = document.getElementById('gameTitle');
         const titleRow = titleEl.closest('.puzzle-title-row');
 
-        const existing = document.getElementById('puzzleEmoji');
-        if (existing) {
-            existing.innerText = emoji;
-            existing.style.opacity = '1';
-            existing.style.transform = 'scale(1)';
-            titleRow.classList.add('has-emoji');
-            return;
+        let container = document.getElementById('puzzleEmoji');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'puzzleEmoji';
+            container.className = 'puzzle-emoji';
+            titleEl.parentNode.insertBefore(container, titleEl);
         }
 
-        const container = document.createElement('div');
-        container.id = 'puzzleEmoji';
-        container.className = 'puzzle-emoji';
         container.innerText = emoji;
-        container.style.opacity = '1';
-        container.style.transform = 'scale(1)';
+        container.style.opacity = opacity;
+        container.style.transform = opacity === '1' ? 'scale(1)' : 'scale(0)';
 
-        titleEl.parentNode.insertBefore(container, titleEl);
-
-        // 添加 has-emoji 类触发左边距
-        titleRow.classList.add('has-emoji');
+        if (opacity === '1') {
+            titleRow.classList.add('has-emoji');
+        } else {
+            titleRow.classList.remove('has-emoji');
+        }
+        return container;
     },
 
         // 调试打印方法
@@ -411,8 +409,8 @@ const Game = {
         this.state = JSON.parse(JSON.stringify(item.state));
 
         // 恢复结算相关状态
-        if (this.state.settlePromptShown === undefined) {
-            this.state.settlePromptShown = false;
+        if (this.state.lastSettlePromptPoints === undefined) {
+            this.state.lastSettlePromptPoints = 0;
         }
         if (this.state.canSettle === undefined) {
             this.state.canSettle = false;
@@ -598,29 +596,11 @@ const Game = {
 
     updateTitleWithEmoji(title, emoji, instant = false) {
         const titleEl = document.getElementById('gameTitle');
-        const titleRow = titleEl.closest('.puzzle-title-row'); // 获取父容器
-        let emojiContainer = document.getElementById('puzzleEmoji');
-
-        if (!emojiContainer) {
-            // 首次创建 Emoji 容器
-            const container = document.createElement('div');
-            container.id = 'puzzleEmoji';
-            container.className = 'puzzle-emoji';
-            container.innerText = emoji;
-            container.style.opacity = '0';
-            container.style.transform = 'scale(0)';
-
-            titleEl.parentNode.insertBefore(container, titleEl);
-            emojiContainer = container;
-        }
+        const emojiContainer = this.createEmojiContainer(emoji, instant ? '1' : '0');
 
         if (instant) {
             // 最终确认时直接显示
             titleEl.innerText = title;
-            emojiContainer.innerText = emoji;
-            emojiContainer.style.opacity = '1';
-            emojiContainer.style.transform = 'scale(1)';
-            titleRow.classList.add('has-emoji'); // 添加类触发左边距
         } else {
             // 动画展示
             titleEl.classList.add('switching');
@@ -628,14 +608,11 @@ const Game = {
                 titleEl.innerText = title;
                 titleEl.classList.remove('switching');
 
-                // 同时添加 has-emoji 类，触发左边距过渡
-                titleRow.classList.add('has-emoji');
-
                 // Emoji 淡入动画
-                emojiContainer.innerText = emoji;
                 setTimeout(() => {
                     emojiContainer.style.opacity = '1';
                     emojiContainer.style.transform = 'scale(1)';
+                    titleEl.closest('.puzzle-title-row').classList.add('has-emoji');
                 }, 100);
             }, 300);
         }
@@ -680,11 +657,12 @@ const Game = {
         this.state.lastInput = val;
         this.state.lastMode = this.mode;
 
+        // 乐观更新：先在本地显示消息
+        UI.addMsg(this.mode==='ask'?'user-ask':'user-guess', val);
+        this.state.history.push({role:"user", content: this.mode==='ask' ? `[提问] ${val}` : `[猜谜] ${val}`});
+
         if (App.mode === 'multi') {
             Multiplayer.sendMessage('chat', (this.mode==='ask' ? '[提问] ' : '[猜谜] ') + val);
-        } else {
-            UI.addMsg(this.mode==='ask'?'user-ask':'user-guess', val);
-            this.state.history.push({role:"user", content: this.mode==='ask' ? `[提问] ${val}` : `[猜谜] ${val}`});
         }
 
         this.state.turnsUsed++;
@@ -736,6 +714,7 @@ const Game = {
                     if (App.mode === 'multi') {
                         Multiplayer.sendMessage('chat', j.res);
                         Multiplayer.syncGameState();
+                        UI.replacePlaceholder(id, null); // 移除占位符，真正的回复会通过订阅到达
                     } else {
                         UI.replacePlaceholder(id, j.res, 'ai');
                         this.state.history.push({role:"assistant", content:j.res});
@@ -832,6 +811,7 @@ const Game = {
                     if (App.mode === 'multi') {
                         Multiplayer.sendMessage('chat', html);
                         Multiplayer.syncGameState();
+                        UI.replacePlaceholder(id, null); // 移除占位符，真正的回复会通过订阅到达
                     } else {
                         UI.replacePlaceholder(id, html, 'ai', true);
                         this.state.history.push({role:"assistant", content:html});
@@ -845,11 +825,11 @@ const Game = {
                     }
 
                     // 检查是否可以结算（得分 >= 80 但未满分）
-                    if (score >= 80 && !this.state.canSettle) {
+                    if (score >= 80) {
                         this.state.canSettle = true;
 
-                        // 首次达到80分（但未满分），1秒后显示结算提示
-                        if (!this.state.settlePromptShown) {
+                        // 如果当前找到的要点数多于上次提示时的数量，则显示提示
+                        if (this.state.foundPoints.length > this.state.lastSettlePromptPoints) {
                             setTimeout(() => this.showSettlePrompt(), 1000);
                         } else {
                             // 之后只更新按钮状态
@@ -1014,8 +994,10 @@ const Game = {
 
     // 显示结算提示卡片
     showSettlePrompt() {
-        if (this.state.settlePromptShown) return;
-        this.state.settlePromptShown = true;
+        const currentPoints = this.state.foundPoints.length;
+        if (currentPoints <= this.state.lastSettlePromptPoints) return;
+        
+        this.state.lastSettlePromptPoints = currentPoints;
 
         // 显示结算按钮
         this.updateSettleButton();

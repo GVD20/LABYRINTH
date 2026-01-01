@@ -41,6 +41,12 @@ const UI = {
     replacePlaceholder(id, content, role, isHtml=false) {
         const el = document.getElementById(id);
         if(!el) return;
+
+        if (content === null) {
+            el.remove();
+            return;
+        }
+
         el.className = `msg msg-${role}`;
 
         if(role === 'ai' && !isHtml) {

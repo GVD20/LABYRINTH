@@ -230,27 +230,38 @@ const Api = {
             let hasThinking = false;
             let thinkingContent = "";
             let normalContent = "";
+            let buffer = "";
 
             while(true) {
                 const {done, value} = await reader.read();
-                if(done) break;
-                const lines = decoder.decode(value, {stream:true}).split('\n');
-                for(const line of lines) {
-                    if(line.startsWith('data: ') && !line.includes('[DONE]')) {
-                        try {
-                            const json = JSON.parse(line.substring(6));
-                            const delta = json.choices?.[0]?.delta;
+                if (value) {
+                    buffer += decoder.decode(value, {stream: true});
+                }
 
-                            if(delta?.reasoning_content) {
-                                hasThinking = true;
-                                thinkingContent += delta.reasoning_content;
-                            }
-                            if(delta?.content) {
-                                normalContent += delta.content;
-                            }
-                        } catch(e){}
+                let lines = buffer.split('\n');
+                buffer = lines.pop();
+
+                for(const line of lines) {
+                    const trimmed = line.trim();
+                    if(!trimmed || !trimmed.startsWith('data: ')) continue;
+                    if(trimmed.includes('[DONE]')) continue;
+
+                    try {
+                        const json = JSON.parse(trimmed.substring(6));
+                        const delta = json.choices?.[0]?.delta;
+
+                        if(delta?.reasoning_content) {
+                            hasThinking = true;
+                            thinkingContent += delta.reasoning_content;
+                        }
+                        if(delta?.content) {
+                            normalContent += delta.content;
+                        }
+                    } catch(e){
+                        console.warn("SSE Parse Error:", e, trimmed);
                     }
                 }
+                if(done) break;
             }
 
             if(hasThinking) {
@@ -300,35 +311,47 @@ const Api = {
             let fullText = "";
             let thinkingText = "";  // 单独记录思考内容
             let started = false;
+            let buffer = "";
 
             while(true) {
                 const {done, value} = await reader.read();
-                if(done) break;
-                const lines = decoder.decode(value, {stream:true}).split('\n');
+                if (value) {
+                    buffer += decoder.decode(value, {stream: true});
+                }
+
+                let lines = buffer.split('\n');
+                buffer = lines.pop();
+
                 for(const line of lines) {
-                    if(line.startsWith('data: ')) {
-                        try {
-                            const json = JSON.parse(line.substring(6));
-                            const delta = json.choices[0].delta;
+                    const trimmed = line.trim();
+                    if(!trimmed || !trimmed.startsWith('data: ')) continue;
+                    if(trimmed.includes('[DONE]')) continue;
 
-                            // 统一合并 think 和 content 用于回调
-                            let chunk = "";
-                            if(delta.reasoning_content) {
-                                chunk += delta.reasoning_content;
-                                thinkingText += delta.reasoning_content;  // 累加思考内容
-                            }
-                            if(delta.content) {
-                                chunk += delta.content;
-                                fullText += delta.content;  // 只累加正式内容
-                            }
+                    try {
+                        const json = JSON.parse(trimmed.substring(6));
+                        const delta = json.choices?.[0]?.delta;
+                        if(!delta) continue;
 
-                            if(chunk) {
-                                if(!started && callbacks.onStart) { callbacks.onStart(); started = true; }
-                                if(callbacks.onContent) callbacks.onContent(chunk, fullText);
-                            }
-                        } catch(e){}
+                        // 统一合并 think 和 content 用于回调
+                        let chunk = "";
+                        if(delta.reasoning_content) {
+                            chunk += delta.reasoning_content;
+                            thinkingText += delta.reasoning_content;  // 累加思考内容
+                        }
+                        if(delta.content) {
+                            chunk += delta.content;
+                            fullText += delta.content;  // 只累加正式内容
+                        }
+
+                        if(chunk) {
+                            if(!started && callbacks.onStart) { callbacks.onStart(); started = true; }
+                            if(callbacks.onContent) callbacks.onContent(chunk, fullText);
+                        }
+                    } catch(e){
+                        console.warn("SSE Parse Error:", e, trimmed);
                     }
                 }
+                if(done) break;
             }
 
             // 打印完整响应，包含思考内容

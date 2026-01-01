@@ -11,7 +11,7 @@ const App = {
             const config = await res.json();
             if (config.url && config.anonKey) {
                 supabaseClient = window.supabase.createClient(config.url, config.anonKey);
-                console.log("Supabase initialized via Vercel env vars");
+                //console.log("Supabase initialized via Vercel env vars");
             }
         } catch (e) {
             console.warn("Supabase config fetch failed, multiplayer may not work:", e);

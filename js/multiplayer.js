@@ -205,8 +205,10 @@ const Multiplayer = {
                 ? msg.content.replace(/^\[提问\]\s*/, '').replace(/^\[猜谜\]\s*/, '')
                 : msg.content;
 
-            // 避免重复添加自己发送的消息（如果本地已经添加了）
-            // 但为了简单起见，我们可以统一由 handleNewMessage 处理 UI，Game.send 只负责发送
+            // 检查是否已存在于历史记录中，避免重复添加自己发送的消息（乐观更新已添加过）
+            const isDuplicate = Game.state.history.some(h => h.content === msg.content);
+            if (isDuplicate) return;
+
             UI.addMsg(role, displayContent, null, isHtml);
 
             // 同步到本地历史记录
@@ -221,9 +223,32 @@ const Multiplayer = {
         // 同步游戏状态到数据库
         if (!this.currentRoom) return;
 
+        // 优化：先获取最新状态进行合并，防止覆盖其他玩家的更新
+        const { data: room } = await supabaseClient.from('rooms')
+            .select('game_state')
+            .eq('id', this.currentRoom)
+            .single();
+
+        if (room && room.game_state) {
+            const remoteState = room.game_state;
+            
+            // 合并已找到的要点
+            if (remoteState.foundPoints) {
+                const mergedPoints = [...new Set([...Game.state.foundPoints, ...remoteState.foundPoints])];
+                Game.state.foundPoints = mergedPoints;
+            }
+            
+            // 轮次和提示取最大值
+            Game.state.turnsUsed = Math.max(Game.state.turnsUsed, remoteState.turnsUsed || 0);
+            Game.state.hintsUsed = Math.max(Game.state.hintsUsed, remoteState.hintsUsed || 0);
+            
+            // 最高分取最大值
+            Game.state.highestScore = Math.max(Game.state.highestScore, remoteState.highestScore || 0);
+        }
+
         let query = supabaseClient.from('rooms').update({
             game_state: Game.state,
-            status: 'playing'
+            status: Game.state.status === 'completed' ? 'completed' : 'playing'
         }).eq('id', this.currentRoom);
 
         if (this.roomPassword) {
