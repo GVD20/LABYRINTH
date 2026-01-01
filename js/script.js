@@ -40,11 +40,6 @@ const Multiplayer = {
     rooms: [],
 
     showLobby() {
-        if(!Api.cfg.base || !Api.cfg.key || !Api.cfg.storyModel) {
-            alert("请先点击右上角设置按钮配置 API Key 和模型，以便在房间中生成谜题");
-            Api.open();
-            return;
-        }
         App.mode = 'multi';
         document.getElementById('btnSingle').classList.remove('primary');
         document.getElementById('btnMulti').classList.add('primary');
