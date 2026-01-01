@@ -251,10 +251,6 @@ const Multiplayer = {
             status: Game.state.status === 'completed' ? 'completed' : 'playing'
         }).eq('id', this.currentRoom);
 
-        if (this.roomPassword) {
-            query = query.eq('password', this.roomPassword);
-        }
-
         await query;
     }
 };

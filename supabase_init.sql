@@ -31,7 +31,7 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 -- 核心安全变更：限制匿名用户直接读取敏感列 (password, config)
 -- 这样即使别人有 anon_key，也无法通过 select * 偷走你的 API Key
 REVOKE ALL ON public.rooms FROM anon;
-GRANT SELECT (id, name, status, is_private, created_at) ON public.rooms TO anon; 
+GRANT SELECT (id, name, status, is_private, game_state, created_at) ON public.rooms TO anon; 
 GRANT INSERT, UPDATE ON public.rooms TO anon;
 GRANT SELECT, INSERT ON public.messages TO anon;
 
