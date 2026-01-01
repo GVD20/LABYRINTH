@@ -6,12 +6,34 @@ const App = {
     mode: 'single', // 'single' or 'multi'
 
     async init() {
+        const CACHE_KEY = 'supabase_config';
+        const TTL = 24 * 60 * 60 * 1000; // 24h
+
         try {
-            const res = await fetch('/api/config');
+            // 尝试从缓存读取
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+                const { data, timestamp } = JSON.parse(cached);
+                if (Date.now() - timestamp < TTL) {
+                    if (data.url && data.anonKey) {
+                        supabaseClient = window.supabase.createClient(data.url, data.anonKey);
+                        return;
+                    }
+                }
+            }
+
+            let res = await fetch('/api/config').catch(() => ({ ok: false }));
+            if (!res.ok) {
+                res = await fetch('https://LABYRINTH.tokisaki.top/api/config');
+            }
             const config = await res.json();
             if (config.url && config.anonKey) {
                 supabaseClient = window.supabase.createClient(config.url, config.anonKey);
-                //console.log("Supabase initialized via Vercel env vars");
+                // 写入缓存
+                localStorage.setItem(CACHE_KEY, JSON.stringify({
+                    data: config,
+                    timestamp: Date.now()
+                }));
             }
         } catch (e) {
             console.warn("Supabase config fetch failed, multiplayer may not work:", e);
