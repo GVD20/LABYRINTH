@@ -36,6 +36,7 @@ const App = {
 
 const Multiplayer = {
     currentRoom: null,
+    roomPassword: null,
     rooms: [],
 
     showLobby() {
@@ -110,18 +111,30 @@ const Multiplayer = {
 
         if (error) return alert("创建失败: " + error.message);
         this.closeCreateModal();
+        this.roomPassword = password; // 保存新创建房间的密码
         this.joinRoom(data[0].id);
     },
 
     async joinRoom(roomId, hasPassword) {
+        let pass = null;
         if (hasPassword) {
-            const pass = prompt("请输入房间密码:");
-            const { data } = await supabaseClient.from('rooms').select('password').eq('id', roomId).single();
-            if (data.password !== pass) return alert("密码错误");
+            pass = prompt("请输入房间密码:");
         }
 
+        // 使用新的安全 RPC 函数获取房间数据
+        // 只有密码正确，数据库才会返回包含 config (API Key) 的数据
+        const { data: rooms, error } = await supabaseClient.rpc('join_room_secure', { 
+            id_param: roomId, 
+            pass_param: pass 
+        });
+
+        if (error || !rooms || rooms.length === 0) {
+            return alert("密码错误或无法加入房间");
+        }
+
+        const room = rooms[0];
         this.currentRoom = roomId;
-        const { data: room } = await supabaseClient.from('rooms').select('*').eq('id', roomId).single();
+        this.roomPassword = pass;
         
         // 使用房间的 API 配置
         if (room.config && room.config.base) {
@@ -230,10 +243,17 @@ const Multiplayer = {
     async syncGameState() {
         // 同步游戏状态到数据库
         if (!this.currentRoom) return;
-        await supabaseClient.from('rooms').update({ 
+        
+        let query = supabaseClient.from('rooms').update({ 
             game_state: Game.state,
             status: 'playing'
         }).eq('id', this.currentRoom);
+
+        if (this.roomPassword) {
+            query = query.eq('password', this.roomPassword);
+        }
+
+        await query;
     }
 };
 

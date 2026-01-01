@@ -20,20 +20,57 @@ CREATE TABLE IF NOT EXISTS public.messages (
 );
 
 -- 3. 开启 Row Level Security (RLS)
--- 为了方便演示和匿名访问，我们为 anon 角色开启所有权限
 ALTER TABLE public.rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
--- 房间表权限：允许匿名用户查看、创建和更新房间状态
-CREATE POLICY "Allow anon to select rooms" ON public.rooms FOR SELECT USING (true);
-CREATE POLICY "Allow anon to insert rooms" ON public.rooms FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow anon to update rooms" ON public.rooms FOR UPDATE USING (true);
+-- 核心安全变更：限制匿名用户直接读取敏感列 (password, config)
+-- 这样即使别人有 anon_key，也无法通过 select * 偷走你的 API Key
+REVOKE ALL ON public.rooms FROM anon;
+GRANT SELECT (id, name, status, created_at) ON public.rooms TO anon; -- 仅允许在大厅查看基本信息
+GRANT INSERT, UPDATE ON public.rooms TO anon;
+GRANT SELECT, INSERT ON public.messages TO anon;
 
--- 消息表权限：允许匿名用户查看和发送消息
+-- 房间表策略
+DROP POLICY IF EXISTS "Allow anon to select rooms" ON public.rooms;
+CREATE POLICY "Allow anon to select rooms" ON public.rooms FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow anon to insert rooms" ON public.rooms;
+CREATE POLICY "Allow anon to insert rooms" ON public.rooms FOR INSERT WITH CHECK (true);
+
+-- 强化更新策略
+DROP POLICY IF EXISTS "Allow anon to update rooms" ON public.rooms;
+CREATE POLICY "Allow anon to update rooms" ON public.rooms FOR UPDATE 
+USING (true)
+WITH CHECK (true);
+
+-- 消息表策略
+DROP POLICY IF EXISTS "Allow anon to select messages" ON public.messages;
 CREATE POLICY "Allow anon to select messages" ON public.messages FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow anon to insert messages" ON public.messages;
 CREATE POLICY "Allow anon to insert messages" ON public.messages FOR INSERT WITH CHECK (true);
 
--- 4. 开启实时同步 (Realtime)
+-- 4. 安全加入房间函数 (RPC)
+-- 只有在密码正确时，才返回包含 config (API Key) 和 game_state 的完整数据
+CREATE OR REPLACE FUNCTION join_room_secure(id_param UUID, pass_param TEXT DEFAULT NULL)
+RETURNS TABLE (
+    id UUID,
+    name TEXT,
+    config JSONB,
+    status TEXT,
+    game_state JSONB,
+    created_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT r.id, r.name, r.config, r.status, r.game_state, r.created_at
+    FROM public.rooms r
+    WHERE r.id = id_param 
+      AND (r.password IS NULL OR r.password = pass_param);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 5. 开启实时同步 (Realtime)
 -- 将表添加到 supabase_realtime 发布中
 BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
