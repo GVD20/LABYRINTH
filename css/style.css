@@ -273,6 +273,8 @@ body {
 
 /* 历史记录 */
 #historySection { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-top: 1px solid var(--border); padding-top: 15px; display: none; }
+#singlePlayerMenu, #multiplayerLobby { display: flex; flex: 1; flex-direction: column; overflow: hidden; }
+#multiplayerLobby > div { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .history-list { flex: 1; overflow-y: auto; padding-right: 5px; }
 .history-item {
     padding: 10px; border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;

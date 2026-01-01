@@ -7,7 +7,7 @@ let supabaseClient = null;
 
 const App = {
     mode: 'single', // 'single' or 'multi'
-    
+
     async init() {
         try {
             const res = await fetch('/api/config');
@@ -25,7 +25,7 @@ const App = {
         this.mode = 'single';
         document.getElementById('btnSingle').classList.add('primary');
         document.getElementById('btnMulti').classList.remove('primary');
-        document.getElementById('singlePlayerMenu').style.display = 'block';
+        document.getElementById('singlePlayerMenu').style.display = 'flex';
         document.getElementById('multiplayerLobby').style.display = 'none';
     },
 
@@ -44,7 +44,7 @@ const Multiplayer = {
         document.getElementById('btnSingle').classList.remove('primary');
         document.getElementById('btnMulti').classList.add('primary');
         document.getElementById('singlePlayerMenu').style.display = 'none';
-        document.getElementById('multiplayerLobby').style.display = 'block';
+        document.getElementById('multiplayerLobby').style.display = 'flex';
         this.refreshRooms();
     },
 
@@ -52,9 +52,9 @@ const Multiplayer = {
         if (!supabaseClient) return alert("请先配置 Supabase URL 和 Key");
         // 仅选择已授权的列，避免 42501 权限错误
         const { data, error } = await supabaseClient.from('rooms')
-            .select('id, name, status, is_private, created_at') 
+            .select('id, name, status, is_private, created_at')
             .order('created_at', { ascending: false });
-        
+
         if (error) return console.error(error);
         this.rooms = data;
         this.renderRooms();
@@ -127,9 +127,9 @@ const Multiplayer = {
 
         // 使用新的安全 RPC 函数获取房间数据
         // 只有密码正确，数据库才会返回包含 config (API Key) 的数据
-        const { data: rooms, error } = await supabaseClient.rpc('join_room_secure', { 
-            id_param: roomId, 
-            pass_param: pass 
+        const { data: rooms, error } = await supabaseClient.rpc('join_room_secure', {
+            id_param: roomId,
+            pass_param: pass
         });
 
         if (error || !rooms || rooms.length === 0) {
@@ -139,7 +139,7 @@ const Multiplayer = {
         const room = rooms[0];
         this.currentRoom = roomId;
         this.roomPassword = pass;
-        
+
         // 如果本地没有完整配置，则使用房间的 API 配置
         const hasLocalConfig = Api.cfg.base && Api.cfg.key && Api.cfg.storyModel;
         if (!hasLocalConfig && room.config && room.config.base) {
@@ -149,7 +149,7 @@ const Multiplayer = {
 
         // 订阅消息
         supabaseClient.channel(`room:${roomId}`)
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` }, 
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` },
                 payload => this.handleNewMessage(payload.new))
             .subscribe();
 
@@ -158,7 +158,7 @@ const Multiplayer = {
             .select('*')
             .eq('room_id', roomId)
             .order('created_at', { ascending: true });
-        
+
         if (msgs) {
             document.getElementById('chatList').innerHTML = '';
             Game.state.history = [];
@@ -168,7 +168,7 @@ const Multiplayer = {
         // 如果房间已经在游戏中，加载状态
         if (room.status === 'playing' && room.game_state) {
             Game.state = room.game_state;
-            
+
             // 初始化游戏 UI
             document.getElementById('gameTitle').innerText = Game.state.puzzle.title;
             document.getElementById('gameTags').innerHTML = Game.state.tags.join(' / ') + ` <span class="diff-badge">${Game.state.diff}</span>`;
@@ -176,10 +176,10 @@ const Multiplayer = {
             document.getElementById('gamePuzzle').style.display = 'block';
             document.getElementById('gameContainer').className = 'game-container state-active';
             document.getElementById('inputWrapper').style.opacity = '1';
-            
+
             Game.updateTitleWithEmoji(Game.state.puzzle.title, Game.state.puzzle.emoji || '🎭', true);
             Game.updateStats();
-            
+
             App.switchPage('page-game');
         } else {
             // 如果是等待中，留在主页进行选词
@@ -189,13 +189,13 @@ const Multiplayer = {
 
     showRoomSetup(room) {
         App.mode = 'multi';
-        document.getElementById('singlePlayerMenu').style.display = 'block';
+        document.getElementById('singlePlayerMenu').style.display = 'flex';
         document.getElementById('multiplayerLobby').style.display = 'none';
-        
+
         // 修改开始按钮文字
         const startBtn = document.querySelector('#singlePlayerMenu .btn.primary');
         startBtn.innerHTML = `<span class="iconify" data-icon="lucide:play"></span> 在房间中开始`;
-        
+
         // 显示当前房间信息
         let infoEl = document.getElementById('roomInfoBar');
         if (!infoEl) {
@@ -230,14 +230,14 @@ const Multiplayer = {
             const isUser = msg.content.includes('[提问]') || msg.content.includes('[猜谜]');
             const role = isUser ? (msg.content.includes('[提问]') ? 'user-ask' : 'user-guess') : 'ai';
             const isHtml = !isUser && msg.content.trim().startsWith('<div');
-            const displayContent = isUser 
+            const displayContent = isUser
                 ? msg.content.replace(/^\[提问\]\s*/, '').replace(/^\[猜谜\]\s*/, '')
                 : msg.content;
 
             // 避免重复添加自己发送的消息（如果本地已经添加了）
             // 但为了简单起见，我们可以统一由 handleNewMessage 处理 UI，Game.send 只负责发送
             UI.addMsg(role, displayContent, null, isHtml);
-            
+
             // 同步到本地历史记录
             Game.state.history.push({
                 role: isUser ? 'user' : 'assistant',
@@ -249,8 +249,8 @@ const Multiplayer = {
     async syncGameState() {
         // 同步游戏状态到数据库
         if (!this.currentRoom) return;
-        
-        let query = supabaseClient.from('rooms').update({ 
+
+        let query = supabaseClient.from('rooms').update({
             game_state: Game.state,
             status: 'playing'
         }).eq('id', this.currentRoom);
@@ -268,7 +268,7 @@ const Bubble = {
     nodes: [],
     tags: TAGS_DATA,
     selected: new Set(),
-    
+
     init() {
         this.container = document.getElementById('bubbleContainer');
         this.refresh();
@@ -278,9 +278,9 @@ const Bubble = {
     async refresh() {
         if(this.nodes.length > 0) {
             this.nodes.forEach(n => n.el.classList.add('exit'));
-            await Utils.sleep(400); 
+            await Utils.sleep(400);
         }
-        
+
         this.container.innerHTML = '';
         this.selected.clear();
         this.updateTip();
@@ -295,14 +295,14 @@ const Bubble = {
             const el = document.createElement('div');
             el.className = 'bubble';
             el.innerText = tag.t;
-            
+
             const baseR = 32 + tag.w * 35 + Math.random() * 8;
-            
+
             const node = {
                 id: i,
-                x: cx + (Math.random()-0.5)*50, 
+                x: cx + (Math.random()-0.5)*50,
                 y: cy + (Math.random()-0.5)*50,
-                vx: (Math.random()-0.5)*0.5, 
+                vx: (Math.random()-0.5)*0.5,
                 vy: (Math.random()-0.5)*0.5,
                 radius: baseR,
                 targetRadius: baseR,
@@ -311,14 +311,14 @@ const Bubble = {
                 tag: tag.t,
                 hover: false
             };
-            
+
             el.style.width = (node.radius * 2) + 'px';
             el.style.height = (node.radius * 2) + 'px';
-            
+
             el.onmouseenter = () => node.hover = true;
             el.onmouseleave = () => node.hover = false;
             el.onclick = () => this.toggle(node);
-            
+
             this.container.appendChild(el);
             this.nodes.push(node);
         });
@@ -346,14 +346,14 @@ const Bubble = {
         const W = this.container.offsetWidth;
         const H = this.container.offsetHeight;
         const center = { x: W/2, y: H/2 };
-        const kCenter = 0.005; 
-        const kColl = 0.3;      
-        const damping = 0.92;   
-        const maxV = 2.5;       
+        const kCenter = 0.005;
+        const kColl = 0.3;
+        const damping = 0.92;
+        const maxV = 2.5;
 
         this.nodes.forEach(node => {
             if(node.hover) {
-                node.vx = 0; node.vy = 0; 
+                node.vx = 0; node.vy = 0;
             } else {
                 node.vx += (center.x - node.x) * kCenter;
                 node.vy += (center.y - node.y) * kCenter;
@@ -370,15 +370,15 @@ const Bubble = {
                 const dx = other.x - node.x;
                 const dy = other.y - node.y;
                 let dist = Math.sqrt(dx*dx + dy*dy);
-                const minDist = node.radius + other.radius + 4; 
+                const minDist = node.radius + other.radius + 4;
 
                 if(dist < minDist) {
                     if (dist === 0) dist = 0.1;
                     const overlap = minDist - dist;
                     const nx = dx / dist;
                     const ny = dy / dist;
-                    
-                    const p = overlap * 0.08; 
+
+                    const p = overlap * 0.08;
                     if(!node.hover) { node.x -= nx * p; node.y -= ny * p; }
                     if(!other.hover) { other.x += nx * p; other.y += ny * p; }
 
@@ -407,7 +407,7 @@ const Bubble = {
             if(!node.hover) {
                 const v = Math.sqrt(node.vx*node.vx + node.vy*node.vy);
                 if(v > maxV) { node.vx = (node.vx/v)*maxV; node.vy = (node.vy/v)*maxV; }
-                
+
                 node.vx *= damping;
                 node.vy *= damping;
                 node.x += node.vx;
@@ -433,12 +433,12 @@ const Api = {
     isVerified: false,
     availableModels: [],
     activeTarget: null,
-    
+
     init() {
         const s = localStorage.getItem('labyrinth_cfg');
         if(s) this.cfg = JSON.parse(s);
         this.updateSettingsButton();
-        
+
         // 监听输入变化，重置验证状态
         const resetVerify = () => { this.isVerified = false; };
         document.getElementById('apiBase')?.addEventListener('input', resetVerify);
@@ -460,8 +460,8 @@ const Api = {
         document.getElementById('modelStory').value = this.cfg.storyModel || "";
         document.getElementById('modelFast').value = this.cfg.fastModel || "";
     },
-    close() { 
-        document.getElementById('apiModal').classList.remove('active'); 
+    close() {
+        document.getElementById('apiModal').classList.remove('active');
         this.closePicker();
     },
     save() {
@@ -492,17 +492,17 @@ const Api = {
         document.getElementById('apiBase').value = url;
         this.isVerified = false;
     },
-    
+
     // Model Fetching & Dropdown Logic
     async fetchModels() {
         const base = document.getElementById('apiBase').value.replace(/\/$/, "");
         const key = document.getElementById('apiKey').value;
         if(!base) return alert("请先填写 Base URL");
-        
+
         const btn = document.querySelector('.scan-success');
         const iconHtml = btn.innerHTML;
         btn.innerHTML = `<span class="iconify" data-icon="lucide:loader-2"></span> 扫描中...`;
-        
+
         try {
             const res = await fetch(`${base}/models`, {
                 headers: { 'Authorization': `Bearer ${key}` }
@@ -510,7 +510,7 @@ const Api = {
             const data = await res.json();
             if(data && data.data) {
                 this.availableModels = data.data.map(m => m.id).sort();
-                
+
                 // Show small success message
                 const statusEl = document.getElementById('scanStatus');
                 statusEl.innerText = `已获取 ${this.availableModels.length} 个模型`;
@@ -525,7 +525,7 @@ const Api = {
             btn.innerHTML = iconHtml;
         }
     },
-    
+
     handleInput(target, val) {
         this.isVerified = false;
         const dd = document.getElementById(target === 'story' ? 'dd-story' : 'dd-fast');
@@ -533,10 +533,10 @@ const Api = {
             dd.classList.remove('active');
             return;
         }
-        
+
         const filtered = this.availableModels.filter(m => m.toLowerCase().includes(val.toLowerCase()));
         dd.innerHTML = '';
-        
+
         if (filtered.length > 0) {
             dd.classList.add('active');
             filtered.forEach(m => {
@@ -554,7 +554,7 @@ const Api = {
             dd.classList.remove('active');
         }
     },
-    
+
     // Legacy full picker (kept for list button)
     openPicker(target) {
         if(this.availableModels.length === 0) {
@@ -599,7 +599,7 @@ const Api = {
         const key = document.getElementById('apiKey').value;
         el.innerText = "连接中...";
         el.style.color = "var(--text-muted)";
-        
+
         const payload = { model: model, messages: [{role:"user", content:"hi"}], max_tokens:1 };
 
         try {
@@ -622,17 +622,17 @@ const Api = {
         const model = document.getElementById(type==='story'?'modelStory':'modelFast').value;
         const base = document.getElementById('apiBase').value.replace(/\/$/, "");
         const key = document.getElementById('apiKey').value;
-        
+
         if (!model) {
             el.innerHTML = `<span style="color:var(--c-no)">❌ 请先填写模型</span>`;
             return;
         }
-        
+
         el.innerHTML = `<span style="color:var(--guess)">🧠 测试思考中...</span>`;
-        
-        const payload = { 
-            model: model, 
-            messages: [{role:"user", content:"1+1=?"}], 
+
+        const payload = {
+            model: model,
+            messages: [{role:"user", content:"1+1=?"}],
             max_tokens: 100,
             stream: true,
             enable_thinking: true
@@ -644,7 +644,7 @@ const Api = {
                 headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
                 body: JSON.stringify(payload)
             });
-            
+
             if (!res.ok) {
                 el.innerHTML = `<span style="color:var(--c-no)">❌ 请求失败 ${res.status}</span>`;
                 return;
@@ -665,7 +665,7 @@ const Api = {
                         try {
                             const json = JSON.parse(line.substring(6));
                             const delta = json.choices?.[0]?.delta;
-                            
+
                             if(delta?.reasoning_content) {
                                 hasThinking = true;
                                 thinkingContent += delta.reasoning_content;
@@ -677,7 +677,7 @@ const Api = {
                     }
                 }
             }
-            
+
             if(hasThinking) {
                 el.innerHTML = `<span style="color:var(--c-yes)">✅ 支持思考模式</span>`;
                 if (type === 'story') this.isVerified = true;
@@ -687,11 +687,11 @@ const Api = {
                 el.innerHTML = `<span style="color:var(--c-no)">❌ 无有效响应</span>`;
             }
 
-        } catch(e) { 
-            el.innerHTML = `<span style="color:var(--c-no)">❌ ${e.message}</span>`; 
+        } catch(e) {
+            el.innerHTML = `<span style="color:var(--c-no)">❌ ${e.message}</span>`;
         }
     },
-    
+
     async stream(model, messages, callbacks, options={}) {
         const payload = {
             model: model, messages: messages, stream: true
@@ -731,7 +731,7 @@ const Api = {
                         try {
                             const json = JSON.parse(line.substring(6));
                             const delta = json.choices[0].delta;
-                            
+
                             // 统一合并 think 和 content 用于回调
                             let chunk = "";
                             if(delta.reasoning_content) {
@@ -751,7 +751,7 @@ const Api = {
                     }
                 }
             }
-            
+
             // 打印完整响应，包含思考内容
             console.group("%c[API RES] Complete", "color:green; font-weight:bold");
             if(thinkingText) {
@@ -776,11 +776,11 @@ const UI = {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.getElementById(to).classList.add('active');
     },
-    
+
     addMsg(role, txt, id=null, isHtml=false) {
         const div = document.createElement('div');
         div.className = `msg msg-${role}`;
-        
+
         if(role === 'ai' && !isHtml) {
             const lower = txt.toLowerCase();
             if(lower.includes('提示') || lower.includes('hint') || lower.includes('💡')) {
@@ -799,7 +799,7 @@ const UI = {
         list.appendChild(div);
         this.scroll();
     },
-    
+
     addPlaceholder(text) {
         const id = 'ph-'+Date.now();
         const div = document.createElement('div');
@@ -810,12 +810,12 @@ const UI = {
         this.scroll();
         return id;
     },
-    
+
     replacePlaceholder(id, content, role, isHtml=false) {
         const el = document.getElementById(id);
         if(!el) return;
         el.className = `msg msg-${role}`;
-        
+
         if(role === 'ai' && !isHtml) {
             const lower = content.toLowerCase();
             if(lower.includes('提示') || lower.includes('hint') || lower.includes('💡')) {
@@ -870,7 +870,7 @@ const UI = {
         }
         this.scroll();
     },
-    
+
     scroll() {
         const list = document.getElementById('chatList');
         list.scrollTo({ top: list.scrollHeight + 150, behavior: 'smooth' });
@@ -878,19 +878,19 @@ const UI = {
 
     setThinkingState(state) {
         const bar = document.getElementById('thinkingBar');
-        if(!state) { 
-            bar.classList.remove('active'); 
-            bar.classList.remove('generating'); 
+        if(!state) {
+            bar.classList.remove('active');
+            bar.classList.remove('generating');
             this.PhaseMgr.reset();
             this.SmoothText.reset();
-            return; 
+            return;
         }
         bar.classList.add('active');
         if(state === 'thinking') {
             bar.classList.remove('generating');
-        } 
+        }
     },
-    
+
     updateTitleSmooth(newTitle) {
         const el = document.getElementById('gameTitle');
         el.classList.add('switching');
@@ -917,12 +917,12 @@ const UI = {
                     const speed = Math.max(1, Math.floor(this.buffer.length / 5));
                     const chunk = this.buffer.slice(0, speed);
                     this.buffer = this.buffer.slice(speed);
-                    
+
                     // 限制 DOM 长度防止内存溢出，但利用 Flex-End 实现左移
                     let current = this.el.innerText + chunk;
                     if(current.length > 300) current = current.slice(-300);
                     this.el.innerText = current;
-                    
+
                     this.play();
                 } else {
                     this.interval = null;
@@ -944,8 +944,8 @@ const UI = {
         lastScheduledIdx: 0,
         lastSwitch: 0,
         timer: null,
-        completionCallback: null, 
-        
+        completionCallback: null,
+
         request(idx) {
             // Only allow moving forward
             if(idx <= this.lastScheduledIdx) return;
@@ -953,7 +953,7 @@ const UI = {
             this.queue.push(idx);
             this.process();
         },
-        
+
         waitAndFinish(cb) {
             this.completionCallback = cb;
             // Trigger process in case queue is already empty
@@ -966,7 +966,7 @@ const UI = {
 
         process() {
             if(this.timer) return; // 正在等待中
-            
+
             const nextIdx = this.queue[0];
             if(nextIdx === undefined) {
                 // Queue empty, check if we need to finish
@@ -979,17 +979,17 @@ const UI = {
 
             const now = Date.now();
             const elapsed = now - this.lastSwitch;
-            
+
             // 智能延迟逻辑：如果当前标签展示已超过1s，立即切换；否则只等待剩余时间
             const delay = elapsed >= 1000 ? 0 : (1000 - elapsed);
 
             this.timer = setTimeout(() => {
                 this.queue.shift();
                 this.currentIdx = nextIdx;
-                
+
                 // Update visuals
                 document.getElementById('thinkingLabelTrack').style.transform = `translateY(-${nextIdx * 20}px)`;
-                
+
                 // SYNC COLOR: Add 'generating' class only if index > 0
                 // This ensures color changes exactly when the label scrolls
                 const bar = document.getElementById('thinkingBar');
@@ -1001,7 +1001,7 @@ const UI = {
                 this.process(); // Continue processing queue
             }, delay);
         },
-        
+
         reset() {
             clearTimeout(this.timer);
             this.timer = null;
@@ -1090,12 +1090,12 @@ const Game = {
         currentIndex: 0,
         interval: null,
         stopped: false,
-        
+
         init() {
             const container = document.createElement('div');
             container.className = 'game-tips-container';
             container.id = 'gameTips';
-            
+
             this.tips.forEach((tip, index) => {
                 const item = document.createElement('div');
                 item.className = 'tip-item';
@@ -1107,67 +1107,67 @@ const Game = {
                 `;
                 container.appendChild(item);
             });
-            
+
             const header = document.querySelector('.game-header');
             header.parentNode.insertBefore(container, header.nextSibling);
-            
+
             this.container = container;
         },
-        
+
         start() {
             if (!this.container) this.init();
-            
+
             this.stopped = false;
             this.currentIndex = 0;
-            
+
             // 显示容器并重置高度
             this.container.style.height = '60px';
             this.container.style.marginTop = '20px';
             this.container.classList.add('active');
-            
+
             this.container.children[0].classList.add('active');
-            
+
             this.interval = setInterval(() => this.next(), 4000);
         },
-        
+
         next() {
             if (this.stopped) return;
-            
+
             const items = this.container.children;
             const current = items[this.currentIndex];
-            
+
             current.classList.remove('active');
             current.classList.add('exit');
-            
+
             this.currentIndex = (this.currentIndex + 1) % this.tips.length;
             const next = items[this.currentIndex];
-            
+
             setTimeout(() => {
                 current.classList.remove('exit');
                 next.classList.add('active');
             }, 300);
         },
-        
+
         freeze() {
             // 修改：freeze 时彻底隐藏，而不是停留在当前
             this.stop();
         },
-        
+
         stop() {
             this.stopped = true;
             if (this.interval) {
                 clearInterval(this.interval);
                 this.interval = null;
             }
-            
+
             if (this.container) {
                 // 移除激活状态
                 this.container.classList.remove('active');
-                
+
                 // 平滑收缩到 0 高度并移除 margin
                 this.container.style.height = '0';
                 this.container.style.marginTop = '0';
-                
+
                 // 重置所有项
                 Array.from(this.container.children).forEach(item => {
                     item.classList.remove('active', 'exit');
@@ -1190,7 +1190,7 @@ const Game = {
         this.state.turnsUsed = 0;
         this.state.hintsUsed = 0;
         this.state.startTime = Date.now();
-        this.state.draftAsk = ""; 
+        this.state.draftAsk = "";
         this.state.draftGuess = "";
         this.state.status = 'generating';
         this.state.titleFound = false;
@@ -1204,39 +1204,39 @@ const Game = {
 
         // 更新页面标题为"生成中"状态
         this.updatePageTitle('正在构建迷宫...');
-        
+
         const container = document.getElementById('gameContainer');
         container.className = 'game-container state-init';
-        
+
         document.getElementById('inputWrapper').style.display = 'flex';
         document.getElementById('inputWrapper').style.opacity = '0';
-        
+
         document.getElementById('gameTitle').innerText = "正在构建迷宫...";
         document.getElementById('gameTags').innerHTML = this.state.tags.join(' / ') + ` <span class="diff-badge">${this.state.diff}</span>`;
         document.getElementById('chatList').innerHTML = '';
         document.getElementById('gamePuzzle').style.display = 'none';
-        
+
         // 重置 Emoji 容器和左边距
         const titleRow = document.querySelector('.puzzle-title-row');
         titleRow.classList.remove('has-emoji');
         const existingEmoji = document.getElementById('puzzleEmoji');
         if (existingEmoji) existingEmoji.remove();
-        
+
         // 隐藏结算按钮
         this.updateSettleButton();
-        
+
         this.updateStats();
         this.setMode('ask');
         UI.SmoothText.init();
         this.TipsCarousel.start();
-        
+
         this.generate();
     },
 
     createEmojiContainer(emoji) {
         const titleEl = document.getElementById('gameTitle');
         const titleRow = titleEl.closest('.puzzle-title-row');
-        
+
         const existing = document.getElementById('puzzleEmoji');
         if (existing) {
             existing.innerText = emoji;
@@ -1245,16 +1245,16 @@ const Game = {
             titleRow.classList.add('has-emoji');
             return;
         }
-        
+
         const container = document.createElement('div');
         container.id = 'puzzleEmoji';
         container.className = 'puzzle-emoji';
         container.innerText = emoji;
         container.style.opacity = '1';
         container.style.transform = 'scale(1)';
-        
+
         titleEl.parentNode.insertBefore(container, titleEl);
-        
+
         // 添加 has-emoji 类触发左边距
         titleRow.classList.add('has-emoji');
     },
@@ -1265,7 +1265,7 @@ const Game = {
             console.log('%c[DEBUG] 谜题尚未生成', 'color: orange');
             return;
         }
-        
+
         console.group('%c🎭 谜题调试信息', 'color: #38bdf8; font-size: 14px; font-weight: bold;');
         console.log('%c标题:', 'color: #fbbf24; font-weight: bold;', this.state.puzzle.title);
         console.log('%cEmoji:', 'color: #fbbf24; font-weight: bold;', this.state.puzzle.emoji || '🎭');
@@ -1287,7 +1287,7 @@ const Game = {
             可结算: this.state.canSettle
         });
         console.groupEnd();
-        
+
         // 作弊提示
         console.log('%c💡 作弊指令:', 'color: #facc15; font-weight: bold;');
         console.log('  Game.cheat.autoWin()     - 直接通关');
@@ -1305,7 +1305,7 @@ const Game = {
             navigator.clipboard?.writeText(Game.state.puzzle.answer);
             console.log('(已复制到剪贴板)');
         },
-        
+
         showHints() {
             if (!Game.state.puzzle) return console.log('谜题未生成');
             console.log('%c🎯 所有要点:', 'color: #a78bfa; font-size: 14px; font-weight: bold;');
@@ -1314,7 +1314,7 @@ const Game = {
                 console.log(`${found ? '✅' : '❌'} ${i + 1}. ${kp}`);
             });
         },
-        
+
         autoWin() {
             if (!Game.state.puzzle) return console.log('谜题未生成');
             // 标记所有要点为已找到
@@ -1324,21 +1324,21 @@ const Game = {
             console.log('%c🏆 作弊通关中...', 'color: #4ade80; font-size: 14px;');
             Game.finish(true);
         },
-        
+
         addTurns(n = 10) {
             if (Game.state.turnsMax === 0) return console.log('当前为无限轮次模式');
             Game.state.turnsMax += n;
             Game.updateStats();
             console.log(`%c⏱️ 已增加 ${n} 轮次，当前剩余: ${Game.state.turnsMax - Game.state.turnsUsed}`, 'color: #38bdf8;');
         },
-        
+
         addHints(n = 5) {
             if (Game.state.hintsMax > 100) return console.log('当前为无限提示模式');
             Game.state.hintsMax += n;
             Game.updateStats();
             console.log(`%c💡 已增加 ${n} 次提示，当前剩余: ${Game.state.hintsMax - Game.state.hintsUsed}`, 'color: #facc15;');
         },
-        
+
         unlockSettle() {
             Game.state.canSettle = true;
             Game.state.highestScore = Math.max(Game.state.highestScore, 80);
@@ -1353,33 +1353,33 @@ const Game = {
 
         // 更新页面标题
         this.updatePageTitle(item.title);
-        
+
         if(item.status === 'completed' || item.rank !== '-' || item.rank === 'F') {
             UI.switchPage('page-game');
             const container = document.getElementById('gameContainer');
             container.className = 'game-container state-active state-over';
-            
+
             const titleEl = document.getElementById('gameTitle');
             const titleRow = titleEl.closest('.puzzle-title-row');
             const tagsEl = document.getElementById('gameTags');
-            
+
             titleRow.style.transition = 'none';
             titleEl.style.transition = 'none';
             tagsEl.style.transition = 'none';
-            
+
             titleEl.innerText = item.title;
             tagsEl.innerHTML = item.tags.join(' / ') + ' [已归档]';
-            
+
             this.createEmojiContainer(emoji);
-            
+
             titleRow.offsetHeight;
             titleRow.style.transition = '';
             titleEl.style.transition = '';
             tagsEl.style.transition = '';
-            
+
             document.getElementById('gamePuzzle').style.display = 'block';
             document.getElementById('gamePuzzle').innerText = item.puzzle.puzzle || item.puzzle;
-            
+
             const list = document.getElementById('chatList');
             list.innerHTML = '';
             item.state.history.forEach(msg => {
@@ -1392,13 +1392,13 @@ const Game = {
                     UI.addMsg('ai', msg.content, null, isHtml);
                 }
             });
-            
+
             let rankColor = 'var(--c-no)';
             if(item.rank === 'S') rankColor = '#fbbf24';
             else if(item.rank === 'A') rankColor = '#a78bfa';
             else if(item.rank === 'B') rankColor = 'var(--primary)';
             else if(item.rank === 'C') rankColor = 'var(--c-yes)';
-            
+
             const card = document.createElement('div');
             card.className = 'inline-result';
             card.innerHTML = `
@@ -1415,19 +1415,19 @@ const Game = {
             setTimeout(() => {
                 card.scrollIntoView({ behavior: 'smooth', block: 'end' });
             }, 100);
-            
+
             // ✨ 打印已完成游戏的调试信息
             console.group('%c📚 历史记录 (已完成)', 'color: #94a3b8; font-size: 14px;');
             console.log('标题:', item.title);
             console.log('评级:', item.rank);
             console.log('真相:', item.puzzle?.answer || item.answer);
             console.groupEnd();
-            
+
             return;
         }
-        
+
         this.state = JSON.parse(JSON.stringify(item.state));
-        
+
         // 恢复结算相关状态
         if (this.state.settlePromptShown === undefined) {
             this.state.settlePromptShown = false;
@@ -1438,37 +1438,37 @@ const Game = {
         if (this.state.highestScore === undefined) {
             this.state.highestScore = 0;
         }
-        
+
         UI.switchPage('page-game');
-        
+
         const container = document.getElementById('gameContainer');
         container.className = 'game-container state-active';
-        
+
         const wrap = document.getElementById('inputWrapper');
         wrap.style.display = 'flex';
         wrap.style.opacity = '1';
-        
+
         const titleEl = document.getElementById('gameTitle');
         const titleRow = titleEl.closest('.puzzle-title-row');
         const tagsEl = document.getElementById('gameTags');
-        
+
         titleRow.style.transition = 'none';
         titleEl.style.transition = 'none';
         tagsEl.style.transition = 'none';
-        
+
         titleEl.innerText = this.state.puzzle.title;
         tagsEl.innerHTML = this.state.tags.join(' / ') + ` <span class="diff-badge">${this.state.diff}</span>`;
-        
+
         this.createEmojiContainer(emoji);
-        
+
         titleRow.offsetHeight;
         titleRow.style.transition = '';
         titleEl.style.transition = '';
         tagsEl.style.transition = '';
-        
+
         document.getElementById('gamePuzzle').style.display = 'block';
         document.getElementById('gamePuzzle').innerText = this.state.puzzle.puzzle;
-        
+
         const list = document.getElementById('chatList');
         list.innerHTML = '';
         this.state.history.forEach(msg => {
@@ -1481,14 +1481,14 @@ const Game = {
                 UI.addMsg('ai', msg.content, null, isHtml);
             }
         });
-        
+
         // 恢复结算按钮状态
         this.updateSettleButton();
-        
+
         UI.addMsg('sys', '存档已恢复，可继续提问。');
         this.updateStats();
         this.setMode('ask');
-        
+
         // ✨ 打印调试信息
         console.log('%c📂 从历史记录恢复', 'color: #38bdf8; font-size: 14px;');
         this.debugPrint();
@@ -1530,9 +1530,9 @@ const Game = {
             onContent: (chunk, fullText) => {
                 UI.SmoothText.push(chunk);
 
-                if(fullText.includes('"title":')) UI.PhaseMgr.request(1); 
-                if(fullText.includes('"puzzle":')) UI.PhaseMgr.request(2); 
-                if(fullText.includes('"answer":')) UI.PhaseMgr.request(3); 
+                if(fullText.includes('"title":')) UI.PhaseMgr.request(1);
+                if(fullText.includes('"puzzle":')) UI.PhaseMgr.request(2);
+                if(fullText.includes('"answer":')) UI.PhaseMgr.request(3);
                 if(fullText.includes('"key_points":')) {
                     UI.PhaseMgr.request(4);
                     this.TipsCarousel.freeze();
@@ -1542,7 +1542,7 @@ const Game = {
                 if (!this.state.titleFound) {
                     const emojiMatch = fullText.match(/"emoji"\s*:\s*"(.+?)"/);
                     const titleMatch = fullText.match(/"title"\s*:\s*"(.*?)"/);
-                    
+
                     if (titleMatch && titleMatch[1]) {
                         this.state.titleFound = true;
                         const emoji = emojiMatch ? emojiMatch[1] : '🎭';
@@ -1561,10 +1561,10 @@ const Game = {
                     try {
                         const clean = txt.replace(/```json/g,'').replace(/```/g,'').replace(/<think>[\s\S]*?<\/think>/g,'');
                         const data = JSON.parse(clean);
-                        
+
                         // 设置默认 Emoji
                         if (!data.emoji) data.emoji = '🎭';
-                        
+
                         this.applyGeneratedPuzzle(data);
 
                         if (App.mode === 'multi') {
@@ -1591,19 +1591,19 @@ const Game = {
 
     applyGeneratedPuzzle(data) {
         this.state.puzzle = data;
-        
+
         // 确保切换到游戏页面
         UI.switchPage('page-game');
-        
+
         // 最终确保一致
         this.updateTitleWithEmoji(data.title, data.emoji, true);
-        
+
         document.getElementById('gamePuzzle').innerText = data.puzzle;
         document.getElementById('gamePuzzle').style.display = 'block';
-        
+
         document.getElementById('gameContainer').className = 'game-container state-active';
         document.getElementById('inputWrapper').style.opacity = '1';
-        
+
         this.state.status = 'active';
         this.saveHistory('active');
         this.updateStats();
@@ -1617,7 +1617,7 @@ const Game = {
         const titleEl = document.getElementById('gameTitle');
         const titleRow = titleEl.closest('.puzzle-title-row'); // 获取父容器
         let emojiContainer = document.getElementById('puzzleEmoji');
-        
+
         if (!emojiContainer) {
             // 首次创建 Emoji 容器
             const container = document.createElement('div');
@@ -1626,11 +1626,11 @@ const Game = {
             container.innerText = emoji;
             container.style.opacity = '0';
             container.style.transform = 'scale(0)';
-            
+
             titleEl.parentNode.insertBefore(container, titleEl);
             emojiContainer = container;
         }
-        
+
         if (instant) {
             // 最终确认时直接显示
             titleEl.innerText = title;
@@ -1644,10 +1644,10 @@ const Game = {
             setTimeout(() => {
                 titleEl.innerText = title;
                 titleEl.classList.remove('switching');
-                
+
                 // 同时添加 has-emoji 类，触发左边距过渡
                 titleRow.classList.add('has-emoji');
-                
+
                 // Emoji 淡入动画
                 emojiContainer.innerText = emoji;
                 setTimeout(() => {
@@ -1692,7 +1692,7 @@ const Game = {
 
         this.state.isProcessing = true;
         input.value = '';
-        
+
         // 记录最后一次输入和模式，用于重试
         this.state.lastInput = val;
         this.state.lastMode = this.mode;
@@ -1703,7 +1703,7 @@ const Game = {
             UI.addMsg(this.mode==='ask'?'user-ask':'user-guess', val);
             this.state.history.push({role:"user", content: this.mode==='ask' ? `[提问] ${val}` : `[猜谜] ${val}`});
         }
-        
+
         this.state.turnsUsed++;
         this.updateStats();
 
@@ -1717,15 +1717,15 @@ const Game = {
 
     retry(btn = null) {
         if(!this.state.lastInput || this.state.isProcessing) return;
-        
+
         // 仅在最后一条消息为错误消息时才允许重试，并移除该错误消息
         const lastMsg = document.querySelector('#chatList .msg:last-child');
         if(!lastMsg || !lastMsg.classList.contains('msg-system-error')) {
             return;
         }
-        
+
         this.state.isProcessing = true;
-        
+
         // 禁用按钮并显示加载状态
         if (btn) {
             btn.disabled = true;
@@ -1736,7 +1736,7 @@ const Game = {
 
         const val = this.state.lastInput;
         const id = UI.addPlaceholder(this.state.lastMode === 'ask' ? "分析中..." : "裁判正在评估...");
-        
+
         if(this.state.lastMode === 'ask') this.handleAsk(val, id);
         else this.handleGuess(val, id);
     },
@@ -1744,7 +1744,7 @@ const Game = {
     handleAsk(q, existingId = null) {
         const sys = `谜面：${this.state.puzzle.puzzle}。真相是：${this.state.puzzle.answer}。用户问：${q}。请回复JSON：{"res":"是/不是/无关/是也不是"}。提示：当用户的问题或判断在真相逻辑中明确成立时，回答“是”；当用户的问题或判断在真相逻辑中明确不成立时，回答“不是”；当问题与谜题无关或真相没有提供相关解释时，回答“无关”；当问题或答案本身存在二义性或悖论时，回答“是也不是”。不要包含任何多余解释。`;
         const id = existingId || UI.addPlaceholder("分析中...");
-        
+
         Api.stream(Api.cfg.fastModel, [{role:"system", content:sys}], {
             onFinish: (txt) => {
                 this.state.isProcessing = false;
@@ -1758,15 +1758,15 @@ const Game = {
                         this.state.history.push({role:"assistant", content:j.res});
                     }
                     this.saveHistory('active');
-                } catch(e) { 
-                    UI.replacePlaceholder(id, `解析错误: ${e.message}`, 'system-error', true); 
+                } catch(e) {
+                    UI.replacePlaceholder(id, `解析错误: ${e.message}`, 'system-error', true);
                 }
             },
             onError: (err) => {
                 this.state.isProcessing = false;
                 UI.replacePlaceholder(id, `系统错误 (${err.message})`, 'system-error', true);
             }
-        }, { thinking: true }); 
+        }, { thinking: true });
     },
 
     // 修改：handleGuess 方法
@@ -1788,29 +1788,29 @@ const Game = {
         注意：matched_segments 和 wrong_segments 必须是用户猜测文本的子串。achieved_points 必须是 key_points 中被用户明显猜中的内容。`;
 
         const id = existingId || UI.addPlaceholder("裁判正在评估...");
-        
+
         Api.stream(Api.cfg.fastModel, [{role:"system", content:sys}], {
-            onThink: () => {}, 
+            onThink: () => {},
             onFinish: (txt) => {
                 this.state.isProcessing = false;
                 try {
                     const clean = txt.replace(/```json/g,'').replace(/```/g,'').replace(/<think>[\s\S]*?<\/think>/g,'');
                     const res = JSON.parse(clean);
-                    
+
                     const thisRoundMatched = (res.achieved_points || []).length;
-                    
+
                     // 累加到总进度
                     if(res.achieved_points) {
-                        res.achieved_points.forEach(p => { 
-                            if(!this.state.foundPoints.includes(p)) 
-                                this.state.foundPoints.push(p); 
+                        res.achieved_points.forEach(p => {
+                            if(!this.state.foundPoints.includes(p))
+                                this.state.foundPoints.push(p);
                         });
                     }
 
                     const total = this.state.puzzle.key_points.length;
                     const cumulativeFound = this.state.foundPoints.length;
                     const wrong = (res.wrong_segments||[]).length;
-                    
+
                     let score = Math.round((thisRoundMatched / total) * 100) - (wrong * 10);
                     score = Math.max(0, Math.min(100, score));
 
@@ -1821,17 +1821,17 @@ const Game = {
 
                     // 使用新的划线处理逻辑
                     let htmlText = this.applyHighlights(g, res.matched_segments || [], res.wrong_segments || []);
-                    
+
                     // 分数颜色
                     let scoreColor = 'var(--c-no)';
                     if (score >= 90) scoreColor = '#fbbf24';
                     else if (score >= 80) scoreColor = '#a78bfa';
                     else if (score >= 60) scoreColor = 'var(--primary)';
                     else if (score >= 40) scoreColor = 'var(--c-yes)';
-                    
+
                     const deduction = wrong > 0 ? ` <span style="font-size:0.7rem; color:var(--c-no)">(-${wrong * 10})</span>` : '';
                     const errorInfo = wrong > 0 ? `<span style="font-size:0.8rem;color:var(--c-no);margin-left:10px;">错误 ${wrong}</span>` : '';
-                    
+
                     // 修改：只显示当前轮次匹配的要点比例
                     const html = `
                     <div class="report">
@@ -1864,7 +1864,7 @@ const Game = {
                     // 检查是否可以结算（得分 >= 80 但未满分）
                     if (score >= 80 && !this.state.canSettle) {
                         this.state.canSettle = true;
-                        
+
                         // 首次达到80分（但未满分），1秒后显示结算提示
                         if (!this.state.settlePromptShown) {
                             setTimeout(() => this.showSettlePrompt(), 1000);
@@ -1874,8 +1874,8 @@ const Game = {
                         }
                     }
 
-                } catch(e) { 
-                    UI.replacePlaceholder(id, `解析错误: ${e.message}`, 'system-error', true); 
+                } catch(e) {
+                    UI.replacePlaceholder(id, `解析错误: ${e.message}`, 'system-error', true);
                 }
             },
             onError: (err) => {
@@ -1889,7 +1889,7 @@ const Game = {
     applyHighlights(text, matchedSegments, wrongSegments) {
         // 转义 HTML
         const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        
+
         // 查找所有片段在文本中的位置
         const findAllOccurrences = (text, segment) => {
             const positions = [];
@@ -1900,7 +1900,7 @@ const Game = {
             }
             return positions;
         };
-        
+
         // 合并重叠区间（取并集）
         const mergeIntervals = (intervals) => {
             if (intervals.length === 0) return [];
@@ -1917,23 +1917,23 @@ const Game = {
             }
             return merged;
         };
-        
+
         // 收集所有正确和错误的区间
         let okIntervals = [];
         let noIntervals = [];
-        
+
         matchedSegments.forEach(seg => {
             okIntervals = okIntervals.concat(findAllOccurrences(text, seg));
         });
-        
+
         wrongSegments.forEach(seg => {
             noIntervals = noIntervals.concat(findAllOccurrences(text, seg));
         });
-        
+
         // 合并同类区间
         okIntervals = mergeIntervals(okIntervals);
         noIntervals = mergeIntervals(noIntervals);
-        
+
         // 从正确区间中移除与错误区间重叠的部分（错误优先）
         const subtractIntervals = (base, subtract) => {
             const result = [];
@@ -1961,9 +1961,9 @@ const Game = {
             });
             return mergeIntervals(result);
         };
-        
+
         okIntervals = subtractIntervals(okIntervals, noIntervals);
-        
+
         // 合并所有标记点
         const marks = [];
         okIntervals.forEach(i => {
@@ -1974,20 +1974,20 @@ const Game = {
             marks.push({ pos: i.start, type: 'no-start' });
             marks.push({ pos: i.end, type: 'no-end' });
         });
-        
+
         // 按位置排序，结束标记优先于开始标记
         marks.sort((a, b) => {
             if (a.pos !== b.pos) return a.pos - b.pos;
             const order = { 'ok-end': 0, 'no-end': 1, 'ok-start': 2, 'no-start': 3 };
             return order[a.type] - order[b.type];
         });
-        
+
         // 构建结果
         let result = '';
         let lastPos = 0;
         let inOk = false;
         let inNo = false;
-        
+
         marks.forEach(m => {
             if (m.pos > lastPos) {
                 const segment = escapeHtml(text.slice(lastPos, m.pos));
@@ -2000,13 +2000,13 @@ const Game = {
                 }
             }
             lastPos = m.pos;
-            
+
             if (m.type === 'ok-start') inOk = true;
             else if (m.type === 'ok-end') inOk = false;
             else if (m.type === 'no-start') inNo = true;
             else if (m.type === 'no-end') inNo = false;
         });
-        
+
         // 添加剩余部分
         if (lastPos < text.length) {
             const segment = escapeHtml(text.slice(lastPos));
@@ -2018,7 +2018,7 @@ const Game = {
                 result += segment;
             }
         }
-        
+
         return result;
     },
 
@@ -2033,10 +2033,10 @@ const Game = {
     showSettlePrompt() {
         if (this.state.settlePromptShown) return;
         this.state.settlePromptShown = true;
-        
+
         // 显示结算按钮
         this.updateSettleButton();
-        
+
         const card = document.createElement('div');
         card.className = 'settle-prompt';
         card.id = 'settlePromptCard';
@@ -2072,7 +2072,7 @@ const Game = {
     getHint() {
         if(this.state.isProcessing) return;
         if(this.state.hintsMax > 0 && this.state.hintsUsed >= this.state.hintsMax) return;
-        
+
         this.state.isProcessing = true;
         this.state.hintsUsed++;
         this.updateStats();
@@ -2115,7 +2115,7 @@ ${pastHints.length > 0 ? pastHints.join('\n') : '（暂无）'}
 4. 根据用户的提问方向，巧妙地引导思考
 5. 不要直接透露谜底
 6. 只输出提示正文，不要其他内容`;
-        
+
         const hintId = UI.addPlaceholder("正在生成提示...");
 
         Api.stream(Api.cfg.fastModel, [{role:"system", content:sys}], {
@@ -2138,7 +2138,7 @@ ${pastHints.length > 0 ? pastHints.join('\n') : '（暂无）'}
     updateStats() {
         const turnEl = document.getElementById('turnCounter');
         const hintEl = document.getElementById('hintCounter');
-        
+
         if(this.state.turnsMax === 0) {
             turnEl.innerHTML = `<span class="iconify" data-icon="lucide:hourglass"></span> ∞ 轮`;
         } else {
@@ -2149,10 +2149,10 @@ ${pastHints.length > 0 ? pastHints.join('\n') : '（暂无）'}
 
         const hBtn = document.getElementById('hintBtn');
         if(this.state.hintsMax === 0) {
-            hintEl.innerHTML = `<span class="iconify" data-icon="lucide:lightbulb-off"></span> 0 提示`; 
+            hintEl.innerHTML = `<span class="iconify" data-icon="lucide:lightbulb-off"></span> 0 提示`;
             hBtn.style.display = 'none';
         } else if (this.state.hintsMax > 100) {
-            hintEl.innerHTML = `<span class="iconify" data-icon="lucide:lightbulb"></span> ∞ 提示`; 
+            hintEl.innerHTML = `<span class="iconify" data-icon="lucide:lightbulb"></span> ∞ 提示`;
             hBtn.style.display = 'block';
             hBtn.innerHTML = `<span class="iconify" data-icon="lucide:lightbulb"></span> 获取提示`;
         } else {
@@ -2167,7 +2167,7 @@ ${pastHints.length > 0 ? pastHints.join('\n') : '（暂无）'}
     // 修改：finish 方法，支持提前结算的分数折算
     finish(success, isReplay=false, earlySettle=false) {
         if(success && !isReplay) Confetti.start();
-        
+
         const wrap = document.getElementById('inputWrapper');
         wrap.style.opacity = '0';
         setTimeout(() => wrap.style.display = 'none', 300);
@@ -2179,19 +2179,19 @@ ${pastHints.length > 0 ? pastHints.join('\n') : '（暂无）'}
         let rank = 'F';
         let rankColor = 'var(--c-no)';
         let finalScore = 0;
-        
+
         if(success) {
             const base = 100;
             const ded = this.state.turnsUsed * 2;
             let s = Math.max(0, base - ded);
-            
+
             // 提前结算时，分数按最高得分比例折算
             if (earlySettle && this.state.highestScore < 100) {
                 s = Math.round(s * (this.state.highestScore / 100));
             }
-            
+
             finalScore = s;
-            
+
             if(s >= 90) { rank = 'S'; rankColor = '#fbbf24'; }
             else if(s >= 80) { rank = 'A'; rankColor = '#a78bfa'; }
             else if(s >= 60) { rank = 'B'; rankColor = 'var(--primary)'; }
@@ -2201,12 +2201,12 @@ ${pastHints.length > 0 ? pastHints.join('\n') : '（暂无）'}
         if(!isReplay || !document.querySelector('.inline-result')) {
             const card = document.createElement('div');
             card.className = 'inline-result';
-            
+
             // 显示提前结算信息
-            const earlyInfo = earlySettle && this.state.highestScore < 100 
-                ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:5px;">提前结算 (最高得分 ${this.state.highestScore}%)</div>` 
+            const earlyInfo = earlySettle && this.state.highestScore < 100
+                ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:5px;">提前结算 (最高得分 ${this.state.highestScore}%)</div>`
                 : '';
-            
+
             card.innerHTML = `
                 <h2>${success ? "🎉 任务完成" : "💀 任务失败"}</h2>
                 <div class="score" style="color:${rankColor}">${rank}</div>
@@ -2221,7 +2221,7 @@ ${pastHints.length > 0 ? pastHints.join('\n') : '（暂无）'}
         }
 
         if(!isReplay) {
-            this.state.status = 'completed'; 
+            this.state.status = 'completed';
             this.saveHistory('completed', rank);
         }
     },
@@ -2235,7 +2235,7 @@ ${pastHints.length > 0 ? pastHints.join('\n') : '（暂无）'}
             status: status,
             rank: rank,
             state: this.state,
-            puzzle: this.state.puzzle, 
+            puzzle: this.state.puzzle,
             answer: this.state.puzzle ? this.state.puzzle.answer : ""
         };
         History.save(item);
@@ -2252,7 +2252,7 @@ ${pastHints.length > 0 ? pastHints.join('\n') : '（暂无）'}
 
 // ==================== History ====================
 const History = {
-    key: 'labyrinth_hist_v8', 
+    key: 'labyrinth_hist_v8',
     list: [],
     init() {
         const s = localStorage.getItem(this.key);
@@ -2284,13 +2284,13 @@ const History = {
             const d = document.createElement('div');
             d.className = 'history-item';
             const isActive = item.status === 'active';
-            
+
             let statusText = isActive ? '进行中' : (item.rank === 'F' ? '已投降' : `已通关 ${item.rank}`);
             let statusClass = isActive ? 'tag-active' : (item.rank === 'F' ? 'tag-fail' : 'tag-done');
-            
+
             const diffMap = { 'easy': '简单', 'normal': '常规', 'hard': '困难' };
             const diffText = diffMap[item.state.diff] || '未知';
-            
+
             // 获取 Emoji，提供默认值
             const emoji = item.puzzle?.emoji || item.state?.puzzle?.emoji || '🎭';
 
@@ -2300,7 +2300,7 @@ const History = {
                     <div style="font-weight:700; color:${isActive?'var(--primary)':'var(--text-main)'}; font-family:var(--font-serif);">${item.title}</div>
                     <div style="font-size:0.75rem; margin-top:4px; color:#64748b; display:flex; gap:6px; align-items:center;">
                         <span class="tag-diff">${diffText}</span>
-                        <span class="${statusClass}">${statusText}</span> 
+                        <span class="${statusClass}">${statusText}</span>
                         ${item.date.split(' ')[0]}
                     </div>
                 </div>
@@ -2320,7 +2320,7 @@ window.onload = () => {
     Api.init();
     Bubble.init();
     History.init();
-    Confetti.init(); 
+    Confetti.init();
 
     const handleEnter = (e, isGuess) => {
         if(e.key === 'Enter') {
@@ -2334,8 +2334,8 @@ window.onload = () => {
 
 const Confetti = {
     ctx: null, w:0, h:0, particles:[],
-    init() { 
-        const c = document.getElementById('confetti'); 
+    init() {
+        const c = document.getElementById('confetti');
         this.ctx = c.getContext('2d');
         const resize = () => { this.w=c.width=window.innerWidth; this.h=c.height=window.innerHeight; };
         window.onresize = resize; resize();
