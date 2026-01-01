@@ -4,6 +4,7 @@ const Multiplayer = {
     currentRoom: null,
     roomPassword: null,
     rooms: [],
+    processedMessageIds: new Set(), // Track processed message IDs to avoid duplicates
 
     showLobby() {
         App.mode = 'multi';
@@ -109,6 +110,9 @@ const Multiplayer = {
         const room = rooms[0];
         this.currentRoom = roomId;
         this.roomPassword = pass;
+        
+        // 清空已处理的消息 ID 集合，准备加载新房间的消息
+        this.processedMessageIds.clear();
 
         // 如果本地没有完整配置，则使用房间的 API 配置
         const hasLocalConfig = Api.cfg.base && Api.cfg.key && Api.cfg.storyModel;
@@ -194,20 +198,32 @@ const Multiplayer = {
     },
 
     handleNewMessage(msg) {
+        // 使用消息 ID 进行去重，避免重复显示
+        if (msg.id && this.processedMessageIds.has(msg.id)) {
+            return;
+        }
+        if (msg.id) {
+            this.processedMessageIds.add(msg.id);
+        }
+
         if (msg.type === 'story_init') {
             const data = JSON.parse(msg.content);
             Game.applyGeneratedPuzzle(data);
         } else if (msg.type === 'chat') {
             const isUser = msg.content.includes('[提问]') || msg.content.includes('[猜谜]');
+            
+            // 对于用户消息，额外检查是否已在历史记录中（乐观更新已添加）
+            // 这样可以避免显示自己发送的消息两次
+            if (isUser) {
+                const isDuplicate = Game.state.history.some(h => h.content === msg.content);
+                if (isDuplicate) return;
+            }
+            
             const role = isUser ? (msg.content.includes('[提问]') ? 'user-ask' : 'user-guess') : 'ai';
             const isHtml = !isUser && msg.content.trim().startsWith('<div');
             const displayContent = isUser
                 ? msg.content.replace(/^\[提问\]\s*/, '').replace(/^\[猜谜\]\s*/, '')
                 : msg.content;
-
-            // 检查是否已存在于历史记录中，避免重复添加自己发送的消息（乐观更新已添加过）
-            const isDuplicate = Game.state.history.some(h => h.content === msg.content);
-            if (isDuplicate) return;
 
             UI.addMsg(role, displayContent, null, isHtml);
 
