@@ -6,7 +6,10 @@ const Api = {
 
     init() {
         const s = localStorage.getItem('labyrinth_cfg');
-        if(s) this.cfg = JSON.parse(s);
+        if(s) {
+            this.cfg = JSON.parse(s);
+            this.isVerified = this.cfg.isVerified || false;
+        }
         this.updateSettingsButton();
 
         // 监听输入变化，重置验证状态
@@ -14,7 +17,8 @@ const Api = {
         document.getElementById('apiBase')?.addEventListener('input', resetVerify);
         document.getElementById('apiKey')?.addEventListener('input', resetVerify);
         document.getElementById('modelStory')?.addEventListener('input', resetVerify);
-        document.getElementById('modelFast')?.addEventListener('input', resetVerify);
+        // 裁判模型不影响思考模式验证状态
+        // document.getElementById('modelFast')?.addEventListener('input', resetVerify);
 
         // Auto close dropdowns when clicking outside
         document.addEventListener('click', (e) => {
@@ -40,7 +44,8 @@ const Api = {
         this.cfg.storyModel = document.getElementById('modelStory').value;
         this.cfg.fastModel = document.getElementById('modelFast').value;
         if(!this.cfg.base || !this.cfg.storyModel) return alert("请填写完整配置");
-        this.isVerified = false; // 保存新配置后需要重新验证
+        
+        this.cfg.isVerified = this.isVerified; // 同步验证状态
         localStorage.setItem('labyrinth_cfg', JSON.stringify(this.cfg));
         this.updateSettingsButton();
         this.close();
@@ -97,7 +102,7 @@ const Api = {
     },
 
     handleInput(target, val) {
-        this.isVerified = false;
+        if (target === 'story') this.isVerified = false;
         const dd = document.getElementById(target === 'story' ? 'dd-story' : 'dd-fast');
         if (this.availableModels.length === 0) {
             dd.classList.remove('active');
@@ -150,7 +155,7 @@ const Api = {
             d.innerText = m;
             d.onclick = () => {
                 document.getElementById(this.activeTarget === 'story' ? 'modelStory' : 'modelFast').value = m;
-                this.isVerified = false;
+                if (this.activeTarget === 'story') this.isVerified = false;
                 this.closePicker();
             };
             el.appendChild(d);
@@ -250,7 +255,11 @@ const Api = {
 
             if(hasThinking) {
                 el.innerHTML = `<span style="color:var(--c-yes)">✅ 支持思考模式</span>`;
-                if (type === 'story') this.isVerified = true;
+                if (type === 'story') {
+                    this.isVerified = true;
+                    this.cfg.isVerified = true;
+                    localStorage.setItem('labyrinth_cfg', JSON.stringify(this.cfg));
+                }
             } else if(normalContent) {
                 el.innerHTML = `<span style="color:var(--guess)">⚠️ 无思考输出</span>`;
             } else {

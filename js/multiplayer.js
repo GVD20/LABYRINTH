@@ -110,7 +110,8 @@ const Multiplayer = {
         const hasLocalConfig = Api.cfg.base && Api.cfg.key && Api.cfg.storyModel;
         if (!hasLocalConfig && room.config && room.config.base) {
             Api.cfg = room.config;
-            Api.isVerified = true; // 房主已验证过，加入者直接标记为已验证
+            Api.isVerified = true; 
+            if (Api.cfg) Api.cfg.isVerified = true; // 房主已验证过，加入者直接标记为已验证
         }
 
         // 订阅消息
