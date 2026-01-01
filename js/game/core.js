@@ -81,15 +81,22 @@ Object.assign(Game, {
 
     handleAsk(q, existingId = null) {
         const sys = `你是一个海龟汤裁判。
-        谜面：${this.state.puzzle.puzzle}
-        真相：${this.state.puzzle.answer}
-        任务：回答用户的提问 "${q}"。
-        规则：
-        1. 只能回答：是、不是、无关、是也不是。
-        2. 如果用户的问题与真相核心逻辑无关，回答"无关"。
-        3. 如果用户的问题涉及多个方面，或者真相中情况复杂，回答"是也不是"。
-        4. 严禁透露真相中的任何额外细节。
-        5. 必须返回JSON格式：{"res": "你的回答"}`;
+        【谜面】：${this.state.puzzle.puzzle}
+        【真相】：${this.state.puzzle.answer}
+
+        任务：根据真相回答用户的提问 "${q}"。
+
+        判定准则（优先级从高到低）：
+        1. 【真相至上】：真相是客观世界的唯一准则。如果谜面描述与真相冲突，必须以真相为准。
+        2. 【逻辑推断】：进行合理的常识推断（如：死在室内 -> 尸体在室内）。
+        3. 【区分主客观】：客观事实以真相为准；角色主观感知（如幻觉）与真相矛盾时，可回答"是也不是"。
+        4. 【回答限制】：只能回答：是、不是、无关、是也不是。
+           - "是/不是"：用于事实明确且与谜题逻辑相关的情况。
+           - "无关"：如果问题涉及的细节在真相中未提及，且对还原真相没有任何帮助（如天气、颜色、无关背景等），必须回答"无关"。不要试图猜测真相未定义的细节。
+           - "是也不是"：用于问题存在前提错误、部分正确、或涉及主观错觉。
+        5. 【严禁剧透】：严禁透露任何真相细节。
+
+        必须返回JSON格式：{"res": "你的回答"}`;
 
         const id = existingId || UI.addPlaceholder("分析中...");
 
@@ -121,19 +128,29 @@ Object.assign(Game, {
     handleGuess(g, existingId = null) {
         const kps = JSON.stringify(this.state.puzzle.key_points);
         const sys = `你是一个海龟汤裁判。
-        谜面：${this.state.puzzle.puzzle}
-        真相：${this.state.puzzle.answer}
-        真相要点表：${kps}
+        【谜面】：${this.state.puzzle.puzzle}
+        【真相】：${this.state.puzzle.answer}
+        【真相要点表】：${kps}
+
         任务：分析用户猜测 "${g}"。
-        请逐句分析用户是否猜中了要点表中的内容。
-        返回JSON：
+
+        判定规则：
+        1. 【语义匹配】：不要死板地进行字面匹配。如果用户表达的意思与要点一致（即使措辞不同），也应判定为猜中。
+        2. 【要点提取】：
+           - matched_segments: 用户猜测中与真相吻合的原文片段。
+           - wrong_segments: 用户猜测中与真相明显矛盾、或完全错误的原文片段。
+           - achieved_points: 对应真相要点表中的要点原文。必须是用户已经实质性猜中的要点。
+        3. 【严禁幻觉】：如果用户只是在提问或进行模糊的假设，没有明确的推理结论，不要强行关联要点。
+        4. 【评价准则】：comment 应简短（15字以内），评价用户的推理逻辑（如：方向正确、细节有误、脑洞大开等），严禁透露任何未猜中的真相细节。
+
+        返回JSON格式：
         {
-            "matched_segments": ["用户猜测中与要点吻合的原文片段1"],
-            "wrong_segments": ["用户猜测中与真相明显矛盾的原文片段1"],
-            "achieved_points": ["对应真相要点表中的要点原文1"],
-            "comment": "温和而鼓励式的一句话评价，仅评价用户本轮的推理表现（如：思路清晰、有所进展、需要调整方向等），不涉及谜题内容"
+            "matched_segments": [],
+            "wrong_segments": [],
+            "achieved_points": [],
+            "comment": ""
         }
-        注意：matched_segments 和 wrong_segments 必须是用户猜测文本的子串。achieved_points 必须是 key_points 中被用户明显猜中的内容。`;
+        注意：matched_segments 和 wrong_segments 必须是用户输入文本 "${g}" 的子串。`;
 
         const id = existingId || UI.addPlaceholder("裁判正在评估...");
 
@@ -351,29 +368,26 @@ Object.assign(Game, {
             .filter(m => m.role === 'assistant' && (m.content.includes('💡') || m.content.includes('提示')))
             .map(m => m.content);
 
-        const sys = `谜面：${this.state.puzzle.puzzle}
-真相：${this.state.puzzle.answer}
+        const sys = `你是一个海龟汤引导者。
+        【谜面】：${this.state.puzzle.puzzle}
+        【真相】：${this.state.puzzle.answer}
 
-用户已猜中的要点：
-${foundPoints.length > 0 ? foundPoints.map((p, i) => `${i + 1}. ${p}`).join('\n') : '（暂无）'}
+        【用户已猜中】：
+        ${foundPoints.length > 0 ? foundPoints.map((p, i) => `${i + 1}. ${p}`).join('\n') : '（暂无）'}
 
-用户尚未猜中的要点：
-${unfoundPoints.length > 0 ? unfoundPoints.map((p, i) => `${i + 1}. ${p}`).join('\n') : '（已全部猜中）'}
+        【用户尚未猜中】：
+        ${unfoundPoints.length > 0 ? unfoundPoints.map((p, i) => `${i + 1}. ${p}`).join('\n') : '（已全部猜中）'}
 
-用户的提问记录：
-${askHistory.length > 0 ? askHistory.slice(-10).map((q, i) => `${i + 1}. ${q}`).join('\n') : '（暂无提问）'}
+        【近期提问记录】：
+        ${askHistory.length > 0 ? askHistory.slice(-5).map((q, i) => `${i + 1}. ${q}`).join('\n') : '（暂无）'}
 
-已提供的提示：
-${pastHints.length > 0 ? pastHints.join('\n') : '（暂无）'}
+        任务：给出一句反问式的提示，引导用户思考尚未猜中的要点。
 
-任务：根据用户的提问记录和尚未猜中的要点，给出一句反问式提示，引导用户向未猜中的要点思考。
-要求：
-1. 不要重复之前的提示
-2. 不要提示用户已经猜中的内容
-3. 优先引导用户关注尚未猜中的关键要点
-4. 根据用户的提问方向，巧妙地引导思考
-5. 不要直接透露谜底
-6. 只输出提示正文，不要其他内容`;
+        要求：
+        1. 【渐进式引导】：不要直接说出答案，也不要提示得太明显。通过反问激发用户的侧向思维。
+        2. 【关联性】：优先结合用户最近的提问方向进行引导。如果用户跑偏了，巧妙地将其拉回。
+        3. 【不重复】：严禁重复已有的提示或已猜中的内容。
+        4. 【简洁】：只输出提示正文，不带任何前缀（如"提示："），字数控制在30字以内。`;
 
         const hintId = UI.addPlaceholder("正在生成提示...");
 
