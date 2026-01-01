@@ -40,12 +40,13 @@ Object.assign(Game, {
         UI.addMsg(this.mode==='ask'?'user-ask':'user-guess', val);
         this.state.history.push({role:"user", content: this.mode==='ask' ? `[提问] ${val}` : `[猜谜] ${val}`});
 
-        if (App.mode === 'multi') {
-            Multiplayer.sendMessage('chat', (this.mode==='ask' ? '[提问] ' : '[猜谜] ') + val);
-        }
-
         this.state.turnsUsed++;
         this.updateStats();
+
+        if (App.mode === 'multi') {
+            Multiplayer.sendMessage('chat', (this.mode==='ask' ? '[提问] ' : '[猜谜] ') + val);
+            Multiplayer.syncGameState();
+        }
 
         if(this.mode === 'ask') this.handleAsk(val);
         else this.handleGuess(val);
@@ -356,6 +357,10 @@ Object.assign(Game, {
         this.state.hintsUsed++;
         this.updateStats();
 
+        if (App.mode === 'multi') {
+            Multiplayer.syncGameState();
+        }
+
         const allPoints = this.state.puzzle.key_points || [];
         const foundPoints = this.state.foundPoints || [];
         const unfoundPoints = allPoints.filter(p => !foundPoints.includes(p));
@@ -397,8 +402,15 @@ Object.assign(Game, {
                 this.state.isProcessing = false;
                 const clean = txt.replace(/<think>[\s\S]*?<\/think>/g,'').trim();
                 const hintMsg = `💡 提示：${clean}`;
-                UI.replacePlaceholder(hintId, hintMsg, 'ai');
-                this.state.history.push({role:"assistant", content:hintMsg});
+                
+                if (App.mode === 'multi') {
+                    Multiplayer.sendMessage('chat', hintMsg);
+                    Multiplayer.syncGameState();
+                    UI.replacePlaceholder(hintId, null);
+                } else {
+                    UI.replacePlaceholder(hintId, hintMsg, 'ai');
+                    this.state.history.push({role:"assistant", content:hintMsg});
+                }
                 this.saveHistory('active');
             },
             onError: (err) => {

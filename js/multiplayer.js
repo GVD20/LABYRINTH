@@ -128,6 +128,12 @@ const Multiplayer = {
                 payload => this.handleNewMessage(payload.new))
             .subscribe();
 
+        // 订阅房间状态更新
+        supabaseClient.channel(`room_state:${roomId}`)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
+                payload => this.handleRoomUpdate(payload.new))
+            .subscribe();
+
         // 获取历史消息
         const { data: msgs } = await supabaseClient.from('messages')
             .select('*')
@@ -232,6 +238,27 @@ const Multiplayer = {
                 role: isUser ? 'user' : 'assistant',
                 content: msg.content
             });
+        }
+    },
+
+    handleRoomUpdate(room) {
+        if (room.game_state) {
+            const remoteState = room.game_state;
+            
+            // 同步关键数值
+            Game.state.turnsUsed = remoteState.turnsUsed || 0;
+            Game.state.hintsUsed = remoteState.hintsUsed || 0;
+            Game.state.foundPoints = remoteState.foundPoints || [];
+            Game.state.highestScore = remoteState.highestScore || 0;
+            
+            // 如果状态变为已完成，且本地还未完成，则触发完成逻辑
+            if (room.status === 'completed' && Game.state.status !== 'completed') {
+                Game.state.status = 'completed';
+                Game.finish(true, true); // 以回放模式完成，避免重复触发特效
+            }
+
+            Game.updateStats();
+            Game.updateSettleButton();
         }
     },
 
