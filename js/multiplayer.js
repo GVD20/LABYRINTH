@@ -82,13 +82,17 @@ const Multiplayer = {
         if (error) return alert("创建失败: " + error.message);
         this.closeCreateModal();
         this.roomPassword = password; // 保存新创建房间的密码
-        this.joinRoom(data[0].id);
+        this.joinRoom(data[0].id, password);
     },
 
-    async joinRoom(roomId, hasPassword) {
-        let pass = null;
-        if (hasPassword) {
-            pass = prompt("请输入房间密码:");
+    async joinRoom(roomId, passOrHasPass) {
+        let pass = ""; 
+        if (typeof passOrHasPass === 'string') {
+            pass = passOrHasPass;
+        } else if (passOrHasPass === true) {
+            const p = prompt("请输入房间密码:");
+            if (p === null) return; 
+            pass = p;
         }
 
         // 使用新的安全 RPC 函数获取房间数据
