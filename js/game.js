@@ -20,7 +20,8 @@ const Game = {
         highestScore: 0,           // 历史最高单次得分
         lastInput: "",             // 记录最后一次输入用于重试
         lastMode: "",              // 记录最后一次模式用于重试
-        isProcessing: false        // 标记是否正在处理请求，防止重复提交
+        isProcessing: false,       // 标记是否正在处理请求，防止重复提交
+        debugEnabled: false        // 是否已开启调试模式
     },
 
     // 默认页面标题
@@ -468,10 +469,6 @@ const Game = {
         UI.addMsg('sys', '存档已恢复，可继续提问。');
         this.updateStats();
         this.setMode('ask');
-
-        // ✨ 打印调试信息
-        console.log('%c📂 从历史记录恢复', 'color: #38bdf8; font-size: 14px;');
-        this.debugPrint();
     },
 
     // 修改 generate 方法，在生成完成后打印调试信息
@@ -589,9 +586,6 @@ const Game = {
         this.saveHistory('active');
         this.updateStats();
         UI.addMsg('sys', '谜题已呈现。请提问/猜谜');
-
-        // ✨ 打印调试信息
-        this.debugPrint();
     },
 
     updateTitleWithEmoji(title, emoji, instant = false) {
