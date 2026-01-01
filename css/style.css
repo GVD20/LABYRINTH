@@ -101,6 +101,17 @@ body {
     box-shadow: 0 4px 15px rgba(74, 222, 128, 0.2);
 }
 
+/* 错误提示脉冲动画 */
+.pulse-error {
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(248, 113, 113, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
+}
+
 .iconify { font-size: 1.1em; }
 
 /* 页面切换动画 */
@@ -262,6 +273,8 @@ body {
 
 /* 历史记录 */
 #historySection { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-top: 1px solid var(--border); padding-top: 15px; display: none; }
+#singlePlayerMenu, #multiplayerLobby { display: flex; flex: 1; flex-direction: column; overflow: hidden; }
+#multiplayerLobby > div { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .history-list { flex: 1; overflow-y: auto; padding-right: 5px; }
 .history-item {
     padding: 10px; border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
