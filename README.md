@@ -20,6 +20,7 @@
 ## 🎮 在线演示
 
 **Demo 地址**: [https://labyrinth.tokisaki.top/](https://labyrinth.tokisaki.top/)
+**GitHub Pages(备用)**: [gvd20.github.io/LABYRINTH/](gvd20.github.io/LABYRINTH/) (仅限单人模式）
 
 ## ✨ 特性
 
@@ -32,7 +33,7 @@
 
 ## 🚀 如何开始
 
-1. **访问应用**: [Labyrinth | 逻辑迷宫](https://labyrinth.tokisaki.top/)
+1. **访问应用**: [Labyrinth | 逻辑迷宫](https://labyrinth.tokisaki.top/) 或 [gvd20.github.io/LABYRINTH/](gvd20.github.io/LABYRINTH/) (仅限单人模式）
 2. **配置 API**: 点击首页右上角的设置图标，填写您的 `API Key` 和 `Base URL`，并设置对应模型名称。
 3. **选择模式**:
    - **单人模式**: 在首页的气泡池中点击选择 1-4 个感兴趣的关键词，开始推理。
