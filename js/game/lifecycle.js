@@ -25,6 +25,7 @@ Object.assign(Game, {
         this.state.foundPoints = [];
         this.state.turnsUsed = 0;
         this.state.hintsUsed = 0;
+        this.state.emojiFound = false;
         this.state.startTime = Date.now();
         this.state.draftAsk = "";
         this.state.draftGuess = "";
@@ -97,22 +98,42 @@ Object.assign(Game, {
             onStart: () => { UI.setThinkingState('generating'); },
             onContent: (chunk, fullText) => {
                 UI.SmoothText.push(chunk);
-                if(fullText.includes('"title":')) UI.PhaseMgr.request(1);
+                
+                // 提取并立即显示 Emoji
+                if (!this.state.emojiFound) {
+                    const emojiMatch = fullText.match(/"emoji"\s*:\s*"(.+?)"/);
+                    if (emojiMatch && emojiMatch[1]) {
+                        this.state.emojiFound = true;
+                        this.createEmojiContainer(emojiMatch[1], '0');
+                        // 触发淡入动画
+                        setTimeout(() => {
+                            const emojiEl = document.getElementById('puzzleEmoji');
+                            if (emojiEl) {
+                                emojiEl.style.opacity = '1';
+                                emojiEl.style.transform = 'scale(1)';
+                                const titleRow = document.querySelector('.puzzle-title-row');
+                                titleRow.classList.add('has-emoji');
+                            }
+                        }, 50);
+                    }
+                }
+                
+                // 提取并更新标题
+                if (!this.state.titleFound) {
+                    const titleMatch = fullText.match(/"title"\s*:\s*"(.*?)"/);
+                    if (titleMatch && titleMatch[1]) {
+                        this.state.titleFound = true;
+                        UI.updateTitleSmooth(titleMatch[1]);
+                        this.updatePageTitle(titleMatch[1]);
+                        UI.PhaseMgr.request(1);
+                    }
+                }
+                
                 if(fullText.includes('"puzzle":')) UI.PhaseMgr.request(2);
                 if(fullText.includes('"answer":')) UI.PhaseMgr.request(3);
                 if(fullText.includes('"key_points":')) {
                     UI.PhaseMgr.request(4);
                     this.TipsCarousel.freeze();
-                }
-                if (!this.state.titleFound) {
-                    const emojiMatch = fullText.match(/"emoji"\s*:\s*"(.+?)"/);
-                    const titleMatch = fullText.match(/"title"\s*:\s*"(.*?)"/);
-                    if (titleMatch && titleMatch[1]) {
-                        this.state.titleFound = true;
-                        const emoji = emojiMatch ? emojiMatch[1] : '🎭';
-                        this.updateTitleWithEmoji(titleMatch[1], emoji);
-                        this.updatePageTitle(titleMatch[1]);
-                    }
                 }
             },
             onFinish: (txt) => {
