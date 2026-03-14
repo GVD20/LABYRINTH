@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 280" width="700" height="280">
+  <defs>
+    <linearGradient id="body-g" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <filter id="sd"><feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.15"/></filter>
+  </defs>
+  <ellipse cx="350" cy="248" rx="210" ry="12" fill="#000" opacity="0.06"/>
+  <line x1="100" y1="138" x2="208" y2="138" stroke="#1e293b" stroke-width="11" stroke-linecap="round"/>
+  <rect x="62" y="115" width="46" height="46" rx="8" fill="#0f172a" filter="url(#sd)"/>
+  <rect x="69" y="122" width="32" height="32" rx="5" fill="#1e293b"/>
+  <circle cx="85" cy="138" r="9" fill="#0ea5e9"/>
+  <text x="85" y="177" text-anchor="middle" font-family="Arial" font-size="9" fill="#64748b" letter-spacing="1">1404</text>
+  <line x1="492" y1="138" x2="600" y2="138" stroke="#1e293b" stroke-width="11" stroke-linecap="round"/>
+  <rect x="592" y="115" width="46" height="46" rx="8" fill="#0f172a" filter="url(#sd)"/>
+  <rect x="599" y="122" width="32" height="32" rx="5" fill="#1e293b"/>
+  <circle cx="615" cy="138" r="9" fill="#0ea5e9"/>
+  <text x="615" y="177" text-anchor="middle" font-family="Arial" font-size="9" fill="#64748b" letter-spacing="1">1404</text>
+  <rect x="208" y="104" width="284" height="76" rx="10" fill="url(#body-g)" filter="url(#sd)"/>
+  <rect x="270" y="104" width="160" height="22" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="350" y="118" text-anchor="middle" font-family="Arial" font-size="8.5" fill="#94a3b8" letter-spacing="2">WALKSNAIL AVATAR</text>
+  <rect x="240" y="130" width="220" height="24" rx="4" fill="#1e293b"/>
+  <text x="350" y="147" text-anchor="middle" font-family="Arial" font-size="8.5" fill="#64748b" letter-spacing="1.5">F7 AIO · 45A 4-IN-1</text>
+  <polygon points="350,85 330,102 370,102" fill="#0f172a"/>
+  <rect x="330" y="90" width="40" height="24" rx="4" fill="#0f172a"/>
+  <rect x="336" y="93" width="28" height="18" rx="2" fill="#1e293b"/>
+  <circle cx="350" cy="102" r="7" fill="#111" stroke="#0ea5e9" stroke-width="1.5"/>
+  <rect x="255" y="180" width="190" height="30" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="350" y="199" text-anchor="middle" font-family="Arial" font-size="9" fill="#64748b" letter-spacing="1.5">4S 450mAh · HV</text>
+  <line x1="85" y1="218" x2="615" y2="218" stroke="#ccc" stroke-width="0.8" stroke-dasharray="3,3"/>
+  <line x1="85" y1="213" x2="85" y2="223" stroke="#ccc" stroke-width="1"/>
+  <line x1="615" y1="213" x2="615" y2="223" stroke="#ccc" stroke-width="1"/>
+  <text x="350" y="232" text-anchor="middle" font-family="Arial" font-size="9" fill="#aaa">&#x2194; 115mm 对角轴距</text>
+  <text x="350" y="262" text-anchor="middle" font-family="Arial" font-size="11" font-weight="600" letter-spacing="3" fill="#bbb" opacity="0.8">PAVO25 WALKSNAIL · SIDE PROFILE</text>
+</svg>

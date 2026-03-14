@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 280" width="700" height="280">
+  <defs>
+    <linearGradient id="bg3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2a1f0a"/>
+      <stop offset="100%" stop-color="#1f1505"/>
+    </linearGradient>
+    <filter id="sd"><feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.15"/></filter>
+  </defs>
+  <ellipse cx="350" cy="248" rx="210" ry="12" fill="#000" opacity="0.06"/>
+  <ellipse cx="90" cy="135" rx="10" ry="51" fill="none" stroke="#2a1f0a" stroke-width="10"/>
+  <ellipse cx="90" cy="135" rx="4" ry="40" fill="none" stroke="#fd7c12" stroke-width="1.5" opacity="0.35"/>
+  <line x1="90" y1="87" x2="210" y2="87" stroke="#2a1f0a" stroke-width="9" stroke-linecap="round"/>
+  <line x1="90" y1="183" x2="210" y2="183" stroke="#2a1f0a" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="90" cy="135" r="10" fill="#1f1505"/>
+  <circle cx="90" cy="135" r="6" fill="#fd7c12"/>
+  <ellipse cx="610" cy="135" rx="10" ry="51" fill="none" stroke="#2a1f0a" stroke-width="10"/>
+  <ellipse cx="610" cy="135" rx="4" ry="40" fill="none" stroke="#fd7c12" stroke-width="1.5" opacity="0.35"/>
+  <line x1="490" y1="87" x2="610" y2="87" stroke="#2a1f0a" stroke-width="9" stroke-linecap="round"/>
+  <line x1="490" y1="183" x2="610" y2="183" stroke="#2a1f0a" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="610" cy="135" r="10" fill="#1f1505"/>
+  <circle cx="610" cy="135" r="6" fill="#fd7c12"/>
+  <rect x="210" y="87" width="280" height="96" rx="10" fill="url(#bg3)" filter="url(#sd)"/>
+  <rect x="240" y="103" width="220" height="28" rx="5" fill="#2a1f0a"/>
+  <text x="350" y="122" text-anchor="middle" font-family="Arial" font-size="9" fill="#fd7c12" letter-spacing="1.5">F4 20A AIO</text>
+  <rect x="326" y="72" width="48" height="22" rx="4" fill="#1f1505"/>
+  <rect x="332" y="75" width="36" height="16" rx="2" fill="#2a1f0a"/>
+  <circle cx="350" cy="83" r="6" fill="#111" stroke="#fd7c12" stroke-width="1.5"/>
+  <rect x="255" y="183" width="190" height="28" rx="7" fill="#2a1f0a" stroke="#fd7c12" stroke-width="0.8"/>
+  <text x="350" y="201" text-anchor="middle" font-family="Arial" font-size="9" fill="#fd7c12" letter-spacing="1.5">3S 450mAh</text>
+  <line x1="90" y1="225" x2="610" y2="225" stroke="#ccc" stroke-width="0.8" stroke-dasharray="3,3"/>
+  <line x1="90" y1="219" x2="90" y2="231" stroke="#ccc" stroke-width="1"/>
+  <line x1="610" y1="219" x2="610" y2="231" stroke="#ccc" stroke-width="1"/>
+  <text x="350" y="242" text-anchor="middle" font-family="Arial" font-size="9" fill="#aaa">&#x2194; 95mm 对角轴距</text>
+  <text x="350" y="264" text-anchor="middle" font-family="Arial" font-size="11" font-weight="600" letter-spacing="3" fill="#bbb" opacity="0.8">BETA95X V3 · SIDE PROFILE</text>
+</svg>

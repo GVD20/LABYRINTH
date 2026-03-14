@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>{{NAME}} — BetaFPV</title>
+<style>
+  @page { size: A4; margin: 0; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 794px;
+    height: 1123px;
+    background: #ffffff;
+    overflow: hidden;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body {
+    font-family: 'Lato', 'Liberation Sans', 'Helvetica Neue', Arial, sans-serif;
+    color: #1a1a1a;
+  }
+
+  /* ─── Root poster container ─── */
+  .poster {
+    width: 794px;
+    height: 1123px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background: #fff;
+  }
+
+  /* ─── Top bar ─── */
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 68px;
+    padding: 0 52px;
+    flex-shrink: 0;
+    border-bottom: 1px solid #ebebeb;
+  }
+  .top-bar-brand {
+    font-family: 'Lato', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    color: #aaa;
+  }
+  .top-bar-tag {
+    font-family: 'Lato', sans-serif;
+    font-size: 10px;
+    font-weight: 300;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #ccc;
+  }
+
+  /* ─── Accent stripe (right edge) ─── */
+  .accent-stripe {
+    position: absolute;
+    top: 68px;
+    right: 0;
+    width: 5px;
+    height: 200px;
+    background: {{ACCENT}};
+  }
+
+  /* ─── Hero section ─── */
+  .hero {
+    display: flex;
+    flex-direction: row;
+    flex-shrink: 0;
+    height: 340px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .hero-text {
+    flex: 0 0 370px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 32px 40px 32px 52px;
+  }
+
+  .drone-category {
+    font-family: 'Lato', sans-serif;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 5.5px;
+    text-transform: uppercase;
+    color: #bbb;
+    margin-bottom: 12px;
+  }
+
+  .drone-name {
+    font-family: 'DejaVu Serif', 'Liberation Serif', 'Georgia', 'Times New Roman', serif;
+    font-size: 52px;
+    font-weight: normal;
+    letter-spacing: -0.5px;
+    color: #111;
+    line-height: 1;
+    margin-bottom: 10px;
+  }
+
+  .drone-tagline {
+    font-family: 'DejaVu Serif', 'Liberation Serif', 'Georgia', serif;
+    font-size: 15px;
+    font-style: italic;
+    font-weight: normal;
+    color: #888;
+    margin-bottom: 22px;
+    line-height: 1.4;
+  }
+
+  .accent-rule {
+    width: 36px;
+    height: 1.5px;
+    background: {{ACCENT}};
+    margin-bottom: 20px;
+  }
+
+  .drone-desc {
+    font-family: 'Lato', sans-serif;
+    font-size: 12.5px;
+    font-weight: 300;
+    line-height: 1.8;
+    color: #666;
+  }
+
+  .hero-image {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 32px 20px 12px;
+    background: #fafafa;
+    border-left: 1px solid #f0f0f0;
+    overflow: hidden;
+  }
+
+  .hero-image img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  /* ─── Second image row ─── */
+  .second-image-bar {
+    flex-shrink: 0;
+    height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f7f7f7;
+    border-bottom: 1px solid #ebebeb;
+    overflow: hidden;
+    padding: 12px 60px;
+  }
+
+  .second-image-bar img {
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  /* ─── Specs area ─── */
+  .specs-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 52px 0;
+    min-height: 0;
+  }
+
+  .specs-title {
+    font-family: 'Lato', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 4.5px;
+    text-transform: uppercase;
+    color: #ccc;
+    margin-bottom: 16px;
+  }
+
+  .specs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 40px;
+    row-gap: 0;
+  }
+
+  .spec-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 7.5px 0;
+    border-bottom: 1px solid #f4f4f4;
+    gap: 10px;
+  }
+  .spec-row:last-child { border-bottom: none; }
+
+  .spec-label {
+    font-family: 'Lato', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: #aaa;
+    flex-shrink: 0;
+  }
+
+  .spec-value {
+    font-family: 'Lato', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: #1a1a1a;
+    text-align: right;
+  }
+
+  /* ─── Highlights band ─── */
+  .highlights-band {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #ebebeb;
+    flex-wrap: wrap;
+  }
+
+  .highlight-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Lato', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: #555;
+  }
+
+  .highlight-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: {{ACCENT}};
+    flex-shrink: 0;
+  }
+
+  /* ─── Bottom bar ─── */
+  .bottom-bar {
+    height: 62px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 52px;
+    flex-shrink: 0;
+    border-top: 1px solid #ebebeb;
+    margin-top: auto;
+  }
+
+  .bottom-bar-left {
+    font-family: 'Lato', sans-serif;
+    font-size: 10px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    color: #ccc;
+    text-transform: uppercase;
+  }
+
+  .bottom-bar-price {
+    font-family: 'DejaVu Serif', 'Liberation Serif', 'Georgia', serif;
+    font-size: 22px;
+    font-weight: normal;
+    color: #111;
+  }
+
+  .bottom-bar-url {
+    font-family: 'Lato', sans-serif;
+    font-size: 10px;
+    font-weight: 300;
+    letter-spacing: 1px;
+    color: #ccc;
+  }
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <!-- Top bar -->
+  <header class="top-bar">
+    <span class="top-bar-brand">BetaFPV</span>
+    <span class="top-bar-tag">{{TAGLINE}}</span>
+  </header>
+
+  <!-- Accent stripe -->
+  <div class="accent-stripe"></div>
+
+  <!-- Hero: text left + main image right -->
+  <div class="hero">
+    <div class="hero-text">
+      <p class="drone-category">{{SUBTITLE}}</p>
+      <h1 class="drone-name">{{NAME}}</h1>
+      <p class="drone-tagline">"{{TAGLINE}}"</p>
+      <div class="accent-rule"></div>
+      <p class="drone-desc">{{DESCRIPTION}}</p>
+    </div>
+    <div class="hero-image">
+      <img src="{{IMAGE1}}" alt="{{NAME}}">
+    </div>
+  </div>
+
+  <!-- Second image banner -->
+  <div class="second-image-bar">
+    <img src="{{IMAGE2}}" alt="{{NAME}} detail view">
+  </div>
+
+  <!-- Specs -->
+  <div class="specs-area">
+    <p class="specs-title">技术规格 · Specifications</p>
+    <div class="specs-grid">
+      {{SPECS_ALL}}
+    </div>
+    <div class="highlights-band">
+      {{HIGHLIGHTS}}
+    </div>
+  </div>
+
+  <!-- Bottom bar -->
+  <footer class="bottom-bar">
+    <span class="bottom-bar-left">betafpv.com</span>
+    <span class="bottom-bar-price">{{PRICE}}</span>
+    <span class="bottom-bar-url">© 2024 BetaFPV Technologies</span>
+  </footer>
+
+</div>
+</body>
+</html>

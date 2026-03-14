@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400" width="500" height="400">
+  <defs>
+    <radialGradient id="bg-o" cx="50%" cy="52%" r="44%">
+      <stop offset="0%" stop-color="#fd7c12" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#fd7c12" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="sd">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+  <ellipse cx="250" cy="215" rx="175" ry="125" fill="url(#bg-o)"/>
+  <circle cx="182" cy="153" r="51" fill="none" stroke="#2a1f0a" stroke-width="10"/>
+  <circle cx="182" cy="153" r="41" fill="none" stroke="#fd7c12" stroke-width="1.5" opacity="0.4"/>
+  <circle cx="318" cy="153" r="51" fill="none" stroke="#2a1f0a" stroke-width="10"/>
+  <circle cx="318" cy="153" r="41" fill="none" stroke="#fd7c12" stroke-width="1.5" opacity="0.4"/>
+  <circle cx="182" cy="289" r="51" fill="none" stroke="#2a1f0a" stroke-width="10"/>
+  <circle cx="182" cy="289" r="41" fill="none" stroke="#fd7c12" stroke-width="1.5" opacity="0.4"/>
+  <circle cx="318" cy="289" r="51" fill="none" stroke="#2a1f0a" stroke-width="10"/>
+  <circle cx="318" cy="289" r="41" fill="none" stroke="#fd7c12" stroke-width="1.5" opacity="0.4"/>
+  <line x1="182" y1="107" x2="318" y2="107" stroke="#2a1f0a" stroke-width="8" stroke-linecap="round"/>
+  <line x1="182" y1="335" x2="318" y2="335" stroke="#2a1f0a" stroke-width="8" stroke-linecap="round"/>
+  <line x1="136" y1="153" x2="136" y2="289" stroke="#2a1f0a" stroke-width="8" stroke-linecap="round"/>
+  <line x1="364" y1="153" x2="364" y2="289" stroke="#2a1f0a" stroke-width="8" stroke-linecap="round"/>
+  <rect x="216" y="186" width="68" height="68" rx="9" fill="#1f1505" filter="url(#sd)"/>
+  <rect x="225" y="195" width="50" height="50" rx="6" fill="#2a1f0a"/>
+  <circle cx="250" cy="220" r="8" fill="#1f1505" stroke="#fd7c12" stroke-width="1.5"/>
+  <text x="250" y="224" text-anchor="middle" font-family="Arial" font-size="7" fill="#fd7c12">C</text>
+  <circle cx="182" cy="153" r="14" fill="#1f1505"/>
+  <circle cx="182" cy="153" r="8" fill="#fd7c12"/>
+  <circle cx="318" cy="153" r="14" fill="#1f1505"/>
+  <circle cx="318" cy="153" r="8" fill="#fd7c12"/>
+  <circle cx="182" cy="289" r="14" fill="#1f1505"/>
+  <circle cx="182" cy="289" r="8" fill="#fd7c12"/>
+  <circle cx="318" cy="289" r="14" fill="#1f1505"/>
+  <circle cx="318" cy="289" r="8" fill="#fd7c12"/>
+  <ellipse cx="182" cy="153" rx="36" ry="6" fill="#1f1505" opacity="0.2" transform="rotate(-15 182 153)"/>
+  <ellipse cx="182" cy="153" rx="36" ry="6" fill="#1f1505" opacity="0.16" transform="rotate(75 182 153)"/>
+  <ellipse cx="318" cy="153" rx="36" ry="6" fill="#1f1505" opacity="0.2" transform="rotate(15 318 153)"/>
+  <ellipse cx="318" cy="153" rx="36" ry="6" fill="#1f1505" opacity="0.16" transform="rotate(-75 318 153)"/>
+  <ellipse cx="182" cy="289" rx="36" ry="6" fill="#1f1505" opacity="0.2" transform="rotate(10 182 289)"/>
+  <ellipse cx="182" cy="289" rx="36" ry="6" fill="#1f1505" opacity="0.16" transform="rotate(-80 182 289)"/>
+  <ellipse cx="318" cy="289" rx="36" ry="6" fill="#1f1505" opacity="0.2" transform="rotate(-10 318 289)"/>
+  <ellipse cx="318" cy="289" rx="36" ry="6" fill="#1f1505" opacity="0.16" transform="rotate(80 318 289)"/>
+  <rect x="232" y="174" width="36" height="18" rx="4" fill="#1f1505"/>
+  <rect x="238" y="177" width="24" height="12" rx="2" fill="#2a1f0a"/>
+  <circle cx="250" cy="183" r="4.5" fill="#111" stroke="#fd7c12" stroke-width="1"/>
+  <text x="250" y="368" text-anchor="middle" font-family="Arial" font-size="11" font-weight="600" letter-spacing="3" fill="#bbb" opacity="0.8">BETA95X V3 · TOP VIEW</text>
+</svg>

@@ -1,0 +1,129 @@
+{
+  "drones": [
+    {
+      "id": "meteor75-pro",
+      "name": "Meteor75 Pro",
+      "tagline": "Micro Racing · Born to Fly",
+      "subtitle": "75mm Brushless Whoop",
+      "description": "Meteor75 Pro 是 BetaFPV 旗舰微型穿越机，专为室内高速竞速与初学者训练设计。搭载全新 F4 1S AIO 飞控，集成 5A 四合一电调，极致轻盈的机体仅重 27g，却拥有令人惊叹的推力输出。无论是穿越家具障碍，还是在狭窄走廊疾驰，Meteor75 Pro 都能精准响应每一个操控指令。",
+      "color": "#1a1a2e",
+      "accent": "#e94560",
+      "specs": {
+        "机架尺寸": "75mm 对角轴距",
+        "电机型号": "0802SE 19500KV",
+        "飞控型号": "BETAFPV F4 1S 5A AIO V2",
+        "电调规格": "5A（峰值 6A）四合一",
+        "图传系统": "BETAFPV M03 25mW VTX",
+        "摄像头": "C01 FPV Camera",
+        "飞行重量": "约 27g（不含电池）",
+        "电池规格": "1S 300mAh HV LiPo",
+        "飞行时间": "约 3–4 分钟",
+        "遥控距离": "约 200m（取决于环境）",
+        "推荐新手": "是",
+        "最大速度": "约 60 km/h"
+      },
+      "highlights": ["超轻量 27g 机体", "F4 AIO 一体飞控", "适合室内竞速"],
+      "price": "¥399"
+    },
+    {
+      "id": "pavo25-walksnail",
+      "name": "Pavo25 Walksnail",
+      "tagline": "HD Vision · Precision Flight",
+      "subtitle": "2.5″ 数字高清穿越机",
+      "description": "Pavo25 Walksnail 融合了 Walksnail Avatar 数字高清图传与 BetaFPV 精工机架的完美组合。2.5 英寸的紧凑尺寸搭配 1404 高转速电机，在室内竞技和开放空间均表现卓越。数字图传带来 1080P 超低延迟画面，让每一次飞行都如同电影级视觉盛宴。",
+      "color": "#0f3460",
+      "accent": "#16213e",
+      "specs": {
+        "机架尺寸": "2.5 英寸（约 115mm）",
+        "电机型号": "1404-4500KV 无刷电机",
+        "飞控型号": "F7 45A AIO 飞控",
+        "电调规格": "45A 四合一 BLHeli_32",
+        "图传系统": "Walksnail Avatar Mini 数字图传",
+        "图传分辨率": "1080P / 60fps",
+        "图传延迟": "低至 22ms",
+        "飞行重量": "约 84g（不含电池）",
+        "电池规格": "4S 450mAh LiPo",
+        "飞行时间": "约 4–5 分钟",
+        "遥控距离": "约 800m",
+        "最大速度": "约 120 km/h"
+      },
+      "highlights": ["Walksnail Avatar HD 图传", "1080P/60fps 超低延迟", "45A 四合一电调"],
+      "price": "¥1,899"
+    },
+    {
+      "id": "cetus-x",
+      "name": "Cetus X",
+      "tagline": "Start Your Journey",
+      "subtitle": "入门级竞速套装",
+      "description": "Cetus X 是 BetaFPV 为 FPV 初学者精心打造的完整入门套装。套装包含飞行器、LiteRadio 3 Pro 遥控器及 VR02 FPV 护目镜，开箱即飞。三档飞行模式设计从稳定模式到完全手动模式循序渐进，让每位新手都能在数小时内掌握 FPV 飞行技巧。机架采用抗摔 PC 材质，搭配桨叶保护罩，大幅降低入门损耗成本。",
+      "color": "#1b4332",
+      "accent": "#40916c",
+      "specs": {
+        "机架尺寸": "185mm 对角轴距",
+        "电机型号": "1404-3800KV 无刷电机",
+        "飞控型号": "BETAFPV F405 1-4S 20A AIO",
+        "电调规格": "20A 四合一",
+        "图传系统": "内置 25mW/100mW/200mW 可调 VTX",
+        "摄像头": "C04 FPV Camera",
+        "飞行模式": "三档（稳定 / 自稳 / 手动）",
+        "飞行重量": "约 97g（不含电池）",
+        "电池规格": "4S 650mAh LiPo",
+        "飞行时间": "约 6–8 分钟",
+        "遥控距离": "约 500m",
+        "套装内容": "飞行器 + 遥控器 + 护目镜"
+      },
+      "highlights": ["完整新手套装", "三档飞行模式", "抗摔机架设计"],
+      "price": "¥1,299"
+    },
+    {
+      "id": "beta95x-v3",
+      "name": "Beta95X V3",
+      "tagline": "Freestyle · Unleashed",
+      "subtitle": "95mm 自由特技穿越机",
+      "description": "Beta95X V3 是 BetaFPV 经典 X-Whoop 系列的第三代旗舰之作，专为自由飞行（Freestyle）爱好者而生。桨叶保护罩与开放式机架的完美结合，在提供撞击保护的同时不牺牲任何性能。搭载 Nebula Nano 数字摄像头，记录每一个惊险特技动作。F722 飞控搭配 Betaflight 调参，让飞行响应精准犀利。",
+      "color": "#212529",
+      "accent": "#fd7e14",
+      "specs": {
+        "机架尺寸": "95mm 对角轴距",
+        "电机型号": "1105-5500KV 无刷电机",
+        "飞控型号": "F722 35A AIO",
+        "电调规格": "35A BLHeli_32 四合一",
+        "图传系统": "DJI O3 / Nebula Nano 可选",
+        "摄像头": "Nebula Nano 50° FOV",
+        "飞行重量": "约 72g（不含电池）",
+        "电池规格": "3S 450mAh LiPo",
+        "飞行时间": "约 4–5 分钟",
+        "机架材质": "纳米注塑 TPU",
+        "桨叶规格": "2.5 英寸 3 叶",
+        "最大速度": "约 110 km/h"
+      },
+      "highlights": ["自由特技优化设计", "TPU 柔性保护罩", "Betaflight 全功能调参"],
+      "price": "¥999"
+    },
+    {
+      "id": "aquila16-pro",
+      "name": "Aquila16 Pro",
+      "tagline": "Fixed Wing · Long Range",
+      "subtitle": "1600mm 远航固定翼",
+      "description": "Aquila16 Pro 是 BetaFPV 面向长距离固定翼 FPV 爱好者推出的专业级平台。1600mm 翼展配合大扭矩外转子电机，巡航时间可达 45 分钟以上。机翼采用 EPO 泡沫一体成型，轻量且抗冲击。内置 ArduPlane 飞控系统，支持全自主航线规划、自动返航及地面站实时监控，是长距离航拍与科研探测的理想选择。",
+      "color": "#2c3e50",
+      "accent": "#3498db",
+      "specs": {
+        "翼展": "1600mm",
+        "机身长度": "1050mm",
+        "电机型号": "2812-950KV 外转子无刷电机",
+        "飞控系统": "ArduPlane / INAV 兼容",
+        "电调规格": "40A BLHeli_S",
+        "图传系统": "1.2GHz 长距离图传（可选）",
+        "飞行重量": "约 1150g（满载）",
+        "电池规格": "4S 5200mAh LiPo",
+        "巡航速度": "约 70 km/h",
+        "最大飞行时间": "45 分钟以上",
+        "最大遥控距离": "约 20km（配合长距离遥控）",
+        "机翼材质": "EPO 泡沫 + 碳纤维加强"
+      },
+      "highlights": ["45+ 分钟长航时", "ArduPlane 自主飞行", "EPO 碳纤维机翼"],
+      "price": "¥2,599"
+    }
+  ]
+}
