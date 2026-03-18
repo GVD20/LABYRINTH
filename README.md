@@ -21,7 +21,7 @@
 
 **Demo 地址**: [https://labyrinth.tokisaki.top/](https://labyrinth.tokisaki.top/)
 
-**GitHub Pages(备用)**: [gvd20.github.io/LABYRINTH/](gvd20.github.io/LABYRINTH/) (仅限单人模式）
+**GitHub Pages(备用)**: [gvd20.github.io/LABYRINTH/](https://gvd20.github.io/LABYRINTH/) (仅限单人模式）
 
 ## ✨ 特性
 
