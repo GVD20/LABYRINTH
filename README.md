@@ -35,7 +35,7 @@
 ## 🚀 如何开始
 
 1. **访问应用**: [Labyrinth | 逻辑迷宫](https://labyrinth.tokisaki.top/) 或 [gvd20.github.io/LABYRINTH/](https://gvd20.github.io/LABYRINTH/) (仅限单人模式）
-2. **配置 API**: 点击首页右上角的设置图标，填写您的 `API Key` 和 `Base URL`，并设置对应模型名称。
+2. **配置 API**: 点击首页右上角的设置图标，填写您的 `API Key` 和 `Base URL`，并设置故事模型 (Reasoning) 与裁判模型 (Chat)。
 3. **选择模式**:
    - **单人模式**: 在首页的气泡池中点击选择 1-4 个感兴趣的关键词，开始推理。
    - **多人模式**: 创建或加入房间，与在线玩家共同揭开真相。
@@ -66,4 +66,3 @@
 ## 📄 开源协议
 
 本项目采用 [GPL-3.0 License](LICENSE) 协议。
-
